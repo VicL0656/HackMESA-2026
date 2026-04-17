@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Log workout · GymLink{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  {% if request.args.get('new_pr') %}
+  <div id="pr-toast" class="animate-bounce rounded-2xl border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-center shadow-lg shadow-amber-900/20">
+    <p class="text-xs font-semibold uppercase tracking-wide text-amber-200">New PR</p>
+    <p class="mt-1 text-lg font-black text-white">{{ request.args.get('new_pr') }}</p>
+    <p class="mt-1 text-xs text-amber-100/80">You just moved the needle. Keep stacking sessions.</p>
+  </div>
+  {% endif %}
+
+  <div>
+    <h1 class="text-xl font-bold text-white">Log a set</h1>
+    <p class="mt-1 text-sm text-slate-400">We will auto-detect PRs and keep your streak honest (one bump per day).</p>
+  </div>
+
+  <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="exercise_name">Exercise</label>
+      <input list="exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"
+        placeholder="Bench Press">
+      <datalist id="exercise-presets">
+        <option>Bench Press</option>
+        <option>Squat</option>
+        <option>Deadlift</option>
+        <option>Overhead Press</option>
+        <option>Pull Ups</option>
+      </datalist>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-400" for="weight_lbs">Weight (lb)</label>
+        <input id="weight_lbs" name="weight_lbs" inputmode="decimal" required
+          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400" for="reps">Reps</label>
+        <input id="reps" name="reps" inputmode="numeric" type="number" min="1" step="1" required
+          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      </div>
+    </div>
+    <button type="submit"
+      class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-brand-500">
+      Save workout
+    </button>
+  </form>
+</div>
+{% endblock %}

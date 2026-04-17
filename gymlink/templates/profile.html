@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Profile · GymLink{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <div class="flex items-center gap-4">
+    <img src="{{ current_user.photo_url }}" alt="" class="h-16 w-16 rounded-2xl border border-slate-800 bg-slate-900 object-cover shadow-lg">
+    <div class="min-w-0 flex-1">
+      <h1 class="truncate text-xl font-bold text-white">{{ current_user.name }}</h1>
+      <p class="truncate text-sm text-slate-400">{{ current_user.email }}</p>
+      {% if streak %}
+      <p class="mt-1 text-sm font-semibold text-white">
+        {{ streak.current_streak }} day streak <span aria-hidden="true">🔥</span>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">Workout style</p>
+      <p class="mt-1 text-sm text-white">{{ current_user.workout_style or 'Not set' }}</p>
+    </div>
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">Goals</p>
+      <p class="mt-1 text-sm text-slate-200">{{ current_user.goals or 'Add goals from your training journal.' }}</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="mb-2 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-200">Personal records</h2>
+      <a href="{{ url_for('workouts.log_workout') }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Log workout</a>
+    </div>
+    {% if not prs %}
+    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+      No PRs yet. Log a lift to start your trophy case.
+    </div>
+    {% else %}
+    <div class="overflow-hidden rounded-xl border border-slate-800">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-900 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-3 py-2">Exercise</th>
+            <th class="px-3 py-2">Weight</th>
+            <th class="px-3 py-2">Reps</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 bg-slate-950/40">
+          {% for pr in prs %}
+          <tr>
+            <td class="px-3 py-2 font-medium text-white">{{ pr.exercise_name }}</td>
+            <td class="px-3 py-2 text-slate-200">{{ "%.1f"|format(pr.best_weight_lbs) }} lb</td>
+            <td class="px-3 py-2 text-slate-300">{{ pr.best_reps }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2 class="mb-2 text-sm font-semibold text-slate-200">Gym friends</h2>
+    {% if not match_rows %}
+    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+      No matches yet. Head to Find lifters to swipe.
+    </div>
+    {% else %}
+    <ul class="space-y-2">
+      {% for m, buddy in match_rows %}
+      {% if buddy %}
+      <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="{{ buddy.photo_url }}" alt="" class="h-9 w-9 rounded-full border border-slate-800 object-cover">
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-white">{{ buddy.name }}</p>
+            <p class="truncate text-xs text-slate-500">{{ buddy.workout_style or 'Athlete' }}</p>
+          </div>
+        </div>
+        <a href="{{ url_for('social.match_thread', match_id=m.id) }}"
+          class="shrink-0 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 hover:border-brand-500 hover:text-white">Chat</a>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-wrap gap-2 text-xs">
+    <a href="{{ url_for('social.swipe') }}" class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-semibold text-slate-200 hover:border-brand-500">Swipe lifters</a>
+    <a href="{{ url_for('leaderboard.home') }}" class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-semibold text-slate-200 hover:border-brand-500">Leaderboard</a>
+  </div>
+</div>
+{% endblock %}

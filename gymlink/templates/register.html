@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Register · GymLink{% endblock %}
+{% block content %}
+<div class="space-y-6 pt-4">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Join GymLink</h1>
+    <p class="mt-1 text-sm text-slate-400">Train together. Compete kindly. Check in at real gyms.</p>
+  </div>
+  <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="name">Display name</label>
+      <input id="name" name="name" required maxlength="120"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      <p class="mt-1 text-[11px] text-slate-500">At least 8 characters.</p>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="workout_style">Workout style</label>
+      <select id="workout_style" name="workout_style"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+        <option value="">Select…</option>
+        <option>powerlifting</option>
+        <option>bodybuilding</option>
+        <option>crossfit</option>
+        <option>cardio</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="goals">Goals</label>
+      <textarea id="goals" name="goals" rows="3" maxlength="512" placeholder="e.g. Hit a 315 bench this semester"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"></textarea>
+    </div>
+    <button type="submit"
+      class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-brand-500">
+      Create account
+    </button>
+  </form>
+  <p class="text-center text-sm text-slate-400">
+    Already have an account?
+    <a href="{{ url_for('auth.login') }}" class="font-semibold text-brand-500 hover:text-brand-400">Log in</a>
+  </p>
+</div>
+{% endblock %}
