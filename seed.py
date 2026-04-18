@@ -220,7 +220,7 @@ def main() -> None:
             if other.id == presenter.id:
                 continue
             _ensure_match(presenter.id, other.id, now - timedelta(days=4 + (i % 55)))
-
+        # Flush so Match rows are visible to later queries and to catch DB errors before heavy inserts.
         db.session.flush()
 
         low, high = sorted([users[0].id, users[1].id])
@@ -515,6 +515,23 @@ def main() -> None:
         tom_user = get_tom_user()
         if tom_user:
             recompute_streak_for_user(tom_user.id)
+
+        from sqlalchemy import or_
+
+        tom_check = get_tom_user()
+        if not tom_check:
+            raise RuntimeError("Seed: Tom user missing after ensure_tom_user / befriend_tom.")
+        pid = presenter.id
+        presenter_match_count = Match.query.filter(
+            or_(Match.user_a_id == pid, Match.user_b_id == pid),
+        ).count()
+        want_presenter_edges = len(users)  # 19 other seed lifters + Tom
+        if presenter_match_count < want_presenter_edges:
+            raise RuntimeError(
+                f"Seed: presenter @{presenter.username} has {presenter_match_count} match rows, "
+                f"expected at least {want_presenter_edges} (every other seed user + Tom). "
+                "Re-run this seed on a clean DB, or run scripts/backfill_presenter_demo_graph.py."
+            )
 
         db.session.commit()
         print("Seed complete.")

@@ -2,18 +2,34 @@ from __future__ import annotations
 
 import re
 
-USERNAME_RE = re.compile(r"^[a-z0-9_]{3,30}$")
+# Letters (any case), digits, underscores; length 3–30. Uniqueness is case-insensitive (see find_user_by_username_ci).
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,30}$")
 
 
 def normalize_username(raw: str | None) -> str | None:
+    """Strip @, map invalid characters to underscores, preserve letter case."""
     if not raw:
         return None
-    s = raw.strip().lower().lstrip("@")
-    s = re.sub(r"[^a-z0-9_]", "_", s)
+    s = raw.strip().lstrip("@")
+    s = re.sub(r"[^a-zA-Z0-9_]", "_", s)
     s = re.sub(r"_+", "_", s).strip("_")
     if not s:
         return None
     return s[:30]
+
+
+def find_user_by_username_ci(handle: str | None):
+    """Return the user row for this @handle, matching case-insensitively."""
+    from sqlalchemy import func
+
+    from models import User
+
+    if not handle:
+        return None
+    h = handle.strip().lstrip("@")
+    if not h:
+        return None
+    return User.query.filter(func.lower(User.username) == h.lower()).first()
 
 
 def assign_username_if_missing(user) -> str:
@@ -56,7 +72,7 @@ def resolve_user_by_email_or_username(raw: str):
         return None
     if s.startswith("@"):
         un = normalize_username(s)
-        return User.query.filter_by(username=un).first() if un else None
+        return find_user_by_username_ci(un) if un else None
     # Any address with @ is treated as email first (not only domains containing a dot).
     # Previously `user@localhost` or `student@campus` failed and fell through to a bogus username lookup.
     if "@" in s:
@@ -69,4 +85,4 @@ def resolve_user_by_email_or_username(raw: str):
             return u
         return None
     un = normalize_username(s)
-    return User.query.filter_by(username=un).first() if un else None
+    return find_user_by_username_ci(un) if un else None

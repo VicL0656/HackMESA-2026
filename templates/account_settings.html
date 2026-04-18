@@ -30,7 +30,7 @@
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400" for="username">Username</label>
-        <input id="username" name="username" value="{{ current_user.username }}" required maxlength="30" pattern="[a-z0-9_]{3,30}"
+        <input id="username" name="username" value="{{ current_user.username }}" required maxlength="30" pattern="[a-zA-Z0-9_]{3,30}"
           class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
       </div>
       <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Save profile</button>

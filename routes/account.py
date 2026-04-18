@@ -15,7 +15,7 @@ from gym_store import get_or_create_osm_gym
 from models import Gym
 from osm_gyms import discover_gyms_nearby
 from tom_friend import is_reserved_username, is_tom_user
-from username_utils import USERNAME_RE, normalize_username
+from username_utils import USERNAME_RE, find_user_by_username_ci, normalize_username
 
 bp = Blueprint("account", __name__, url_prefix="/account")
 
@@ -65,11 +65,13 @@ def settings():
                 flash("Display name is required.", "error")
                 return redirect(url_for("account.settings"))
             if not username or not USERNAME_RE.match(username):
-                flash("Username must be 3–30 characters: lowercase letters, numbers, underscores.", "error")
+                flash(
+                    "Username must be 3–30 characters: letters, numbers, underscores (any letter case).",
+                    "error",
+                )
                 return redirect(url_for("account.settings"))
-            from models import User
-
-            clash = User.query.filter(User.username == username, User.id != current_user.id).first()
+            clash_row = find_user_by_username_ci(username)
+            clash = clash_row if clash_row and clash_row.id != current_user.id else None
             if clash:
                 flash("That username is already taken.", "error")
                 return redirect(url_for("account.settings"))

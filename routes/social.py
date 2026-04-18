@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, desc, or_
+from sqlalchemy import and_, desc, func, or_
 
 from extensions import db
 from models import (
@@ -26,8 +26,10 @@ from models import (
 )
 from models import utcnow
 from uploads_util import save_uploaded_image
+from tom_friend import is_tom_user, repair_tom_friendship_if_missing
 from username_utils import (
     assign_username_if_missing,
+    find_user_by_username_ci,
     normalize_username,
     resolve_user_by_email_or_username,
 )
@@ -198,6 +200,42 @@ def friends_add():
     return _redirect_after_friend_form()
 
 
+@bp.get("/friends/username-suggest")
+@login_required
+def friends_username_suggest():
+    """Typeahead for Add friend: usernames matching prefix (not email). Excludes self and existing gym friends."""
+    import re
+
+    raw = (request.args.get("q") or "").strip()
+    if not raw:
+        return jsonify({"ok": True, "users": []})
+    at = raw.find("@")
+    if at >= 0 and (at != 0 or raw.count("@") != 1):
+        return jsonify({"ok": True, "users": []})
+    q = re.sub(r"[^a-zA-Z0-9_]", "", raw.lstrip("@"))
+    if len(q) < 2:
+        return jsonify({"ok": True, "users": []})
+
+    prefix = q.lower() + "%"
+    friend_ids = _friend_ids(current_user.id)
+    qq = User.query.filter(
+        func.lower(User.username).like(prefix),
+        User.id != current_user.id,
+    )
+    if friend_ids:
+        qq = qq.filter(User.id.notin_(list(friend_ids)))
+    rows = qq.order_by(User.username.asc()).limit(12).all()
+    return jsonify(
+        {
+            "ok": True,
+            "users": [
+                {"username": u.username, "name": u.name, "photo_url": (u.photo_url or "").strip()}
+                for u in rows
+            ],
+        }
+    )
+
+
 @bp.post("/friends/favorite/<int:other_id>")
 @login_required
 def friends_toggle_favorite(other_id: int):
@@ -228,6 +266,10 @@ def friends_remove(other_id: int):
     if other_id == current_user.id:
         flash("Invalid.", "error")
         return redirect(url_for("social.profile"))
+    other = db.session.get(User, other_id)
+    if other and is_tom_user(other):
+        flash("Tom stays as your default gym friend — you can’t remove that match.", "info")
+        return redirect(request.referrer or url_for("leaderboard.home"))
     low, high = _ordered_pair(current_user.id, other_id)
     if not Match.query.filter_by(user_a_id=low, user_b_id=high).first():
         flash("You are not gym friends with that user.", "info")
@@ -282,6 +324,7 @@ def _feed_timestamp(item_type: str, obj: Workout | OutdoorActivity):
 @bp.route("/feed")
 @login_required
 def feed():
+    repair_tom_friendship_if_missing(current_user.id)
     friend_ids = list(_friend_ids(current_user.id))
     visible_ids = list({*friend_ids, current_user.id})
     workouts: list[Workout] = []
@@ -701,7 +744,7 @@ def connect_friend(username: str):
     un = normalize_username(username)
     if not un:
         abort(404)
-    target = User.query.filter_by(username=un).first()
+    target = find_user_by_username_ci(un)
     if not target:
         abort(404)
     return render_template("connect.html", target=target)
@@ -882,6 +925,7 @@ def goal_update(goal_id: int):
 def profile():
     from models import PersonalRecord, Streak
 
+    repair_tom_friendship_if_missing(current_user.id)
     streak = Streak.query.filter_by(user_id=current_user.id).first()
     prs = (
         PersonalRecord.query.filter_by(user_id=current_user.id)

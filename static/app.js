@@ -477,12 +477,132 @@ function initNotificationEnable() {
   });
 }
 
+function friendSuggestAvatarUrl(photoUrl) {
+  const p = photoUrl == null ? "" : String(photoUrl).trim();
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith("/uploads/")) return appUrl(p);
+  if (!p.startsWith("/") && !p.includes("/")) return appUrl("/uploads/" + p);
+  return p;
+}
+
+function initFriendUsernameAutocomplete() {
+  const root = document.querySelector("[data-friend-username-autocomplete]");
+  if (!root) return;
+  const url = root.getAttribute("data-suggest-url");
+  const input = root.querySelector("[data-friend-handle-input]");
+  let list = root.querySelector("[data-friend-suggestions]");
+  if (!url || !input || !list) return;
+
+  let hideTimer = null;
+  let fetchTimer = null;
+  let lastController = null;
+
+  const escapeHtml = (s) => {
+    const d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    return d.innerHTML;
+  };
+
+  const hide = () => {
+    list.classList.add("hidden");
+    list.innerHTML = "";
+  };
+
+  const looksLikeEmailForSuggest = (raw) => {
+    const i = raw.indexOf("@");
+    if (i < 0) return false;
+    if (i !== 0) return true;
+    return (raw.match(/@/g) || []).length !== 1;
+  };
+
+  const runFetch = async () => {
+    const raw = input.value.trim();
+    if (raw.length < 2 || looksLikeEmailForSuggest(raw)) {
+      hide();
+      return;
+    }
+    if (lastController) lastController.abort();
+    lastController = new AbortController();
+    list.innerHTML =
+      '<li class="px-3 py-2 text-xs text-slate-500" role="presentation">Searching…</li>';
+    list.classList.remove("hidden");
+    try {
+      const params = new URLSearchParams({ q: raw });
+      const res = await fetch(`${url}?${params}`, {
+        credentials: "same-origin",
+        signal: lastController.signal,
+      });
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      const data = ct.includes("application/json") ? await res.json() : {};
+      if (!res.ok || !data.ok) throw new Error("bad");
+      const rows = data.users || [];
+      list.innerHTML = "";
+      if (!rows.length) {
+        const li = document.createElement("li");
+        li.className = "px-3 py-2 text-xs text-slate-500";
+        li.setAttribute("role", "presentation");
+        li.textContent = "No matching usernames — try email or another spelling.";
+        list.appendChild(li);
+        list.classList.remove("hidden");
+        return;
+      }
+      rows.forEach((row) => {
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.className =
+          "flex cursor-pointer items-center gap-2 border-b border-slate-800/80 px-3 py-2 last:border-0 hover:bg-slate-900";
+        const av = friendSuggestAvatarUrl(row.photo_url || "");
+        const imgHtml = av
+          ? `<img src="${escapeHtml(av)}" alt="" class="h-9 w-9 shrink-0 rounded-full border border-slate-800 object-cover" loading="lazy">`
+          : `<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-500">?</span>`;
+        li.innerHTML = `${imgHtml}<div class="min-w-0 flex-1"><div class="truncate text-sm font-medium text-white">${escapeHtml(row.name)}</div><div class="truncate font-mono text-[11px] text-brand-500/90">@${escapeHtml(row.username)}</div></div>`;
+        const pick = (e) => {
+          e.preventDefault();
+          clearTimeout(hideTimer);
+          input.value = "@" + String(row.username || "").trim();
+          hide();
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        li.addEventListener("pointerdown", pick);
+        list.appendChild(li);
+      });
+      list.classList.remove("hidden");
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      hide();
+    }
+  };
+
+  input.addEventListener("input", () => {
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(runFetch, 220);
+  });
+
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 2) runFetch();
+  });
+
+  input.addEventListener("blur", () => {
+    hideTimer = setTimeout(hide, 200);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hide();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!root.contains(e.target)) hide();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initLeaderboardTabs();
   initLeaderboardSocket();
   initGymFeed();
   initPrToast();
   initSchoolAutocomplete();
+  initFriendUsernameAutocomplete();
   initGymlinkSharePr();
   initWorkoutDayReminders();
   initNotificationEnable();

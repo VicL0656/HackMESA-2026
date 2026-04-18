@@ -19,11 +19,28 @@
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-slate-200">Search &amp; request</h2>
     <p class="mt-1 text-xs text-slate-500">They accept on their profile, or you connect instantly if they already sent you a request.</p>
-    <form method="post" action="{{ url_for('social.friends_add') }}" class="mt-3 flex flex-col gap-2 sm:flex-row">
+    <form method="post" action="{{ url_for('social.friends_add') }}" class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
       <input type="hidden" name="redirect_to" value="{{ url_for('social.add_friend') }}">
-      <input name="friend_handle" type="text" required autocomplete="off" placeholder="@their_handle or email"
-        class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
-      <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send request</button>
+      <div
+        class="relative min-w-0 flex-1"
+        data-friend-username-autocomplete
+        data-suggest-url="{{ url_for('social.friends_username_suggest') }}">
+        <input
+          id="add-friend-handle-input"
+          name="friend_handle"
+          type="text"
+          required
+          autocomplete="off"
+          placeholder="@their_handle or email"
+          data-friend-handle-input
+          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+        <ul
+          data-friend-suggestions
+          class="absolute left-0 right-0 top-full z-[200] mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 py-1 text-left shadow-xl hidden"
+          role="listbox"
+          aria-label="Matching usernames"></ul>
+      </div>
+      <button type="submit" class="shrink-0 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send request</button>
     </form>
   </section>
 

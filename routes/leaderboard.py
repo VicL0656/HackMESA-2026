@@ -19,6 +19,7 @@ from models import (
     utcnow,
 )
 from routes.social import _friend_ids, _suggested_friends_same_gym
+from tom_friend import repair_tom_friendship_if_missing
 from workout_helpers import user_has_workout_on_date
 
 bp = Blueprint("leaderboard", __name__)
@@ -202,6 +203,7 @@ def _build_suggestions(me: User, my_friends: set[int]) -> list[dict]:
 @bp.route("/leaderboard")
 @login_required
 def home():
+    repair_tom_friendship_if_missing(current_user.id)
     friends = _friend_users(current_user.id)
     friend_match_map = _friend_match_map(current_user.id)
     friend_ids = [f.id for f in friends]

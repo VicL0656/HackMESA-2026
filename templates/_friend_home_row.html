@@ -69,7 +69,7 @@
         {% if mid and u.id != current_user.id %}
         <a href="{{ url_for('social.match_thread', match_id=mid) }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Message</a>
         {% endif %}
-        {% if u.id != current_user.id %}
+        {% if u.id != current_user.id and u.username|lower != 'gymlink_tom' %}
         <form method="post" action="{{ url_for('social.friends_remove', other_id=u.id) }}" class="inline" onsubmit="return confirm('Remove this friend?');">
           <button type="submit" class="text-xs font-semibold text-rose-400 hover:text-rose-300">Unfriend</button>
         </form>

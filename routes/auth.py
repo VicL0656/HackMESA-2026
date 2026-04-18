@@ -13,7 +13,12 @@ from mail_util import mail_configured, send_email
 from models import PasswordResetToken, Streak, User
 from models import utcnow
 from tom_friend import TOM_EMAIL, befriend_tom, ensure_tom_user, is_reserved_username
-from username_utils import USERNAME_RE, normalize_username, resolve_user_by_email_or_username
+from username_utils import (
+    USERNAME_RE,
+    find_user_by_username_ci,
+    normalize_username,
+    resolve_user_by_email_or_username,
+)
 
 bp = Blueprint("auth", __name__)
 
@@ -44,15 +49,18 @@ def register():
             return render_template("register.html")
 
         if not username or not USERNAME_RE.match(username):
-            flash("Username must be 3–30 characters: lowercase letters, numbers, and underscores only.", "error")
+            flash(
+                "Username must be 3–30 characters: letters, numbers, and underscores only (any letter case).",
+                "error",
+            )
             return render_template("register.html")
 
         if User.query.filter_by(email=email).first():
             flash("That email is already registered.", "error")
             return render_template("register.html")
 
-        if User.query.filter_by(username=username).first():
-            flash("That username is already taken.", "error")
+        if find_user_by_username_ci(username):
+            flash("That username is already taken (handles are matched without regard to letter case).", "error")
             return render_template("register.html")
 
         if is_reserved_username(username):

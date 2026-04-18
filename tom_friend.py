@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 
+from sqlalchemy import func
+
 from extensions import bcrypt, db
 from models import Goal, Match, Message, PersonalRecord, Streak, User, Workout
 from models import utcnow
@@ -56,7 +58,7 @@ def is_tom_user(user: User | None) -> bool:
 
 
 def get_tom_user() -> User | None:
-    return User.query.filter_by(username=TOM_USERNAME).first()
+    return User.query.filter(func.lower(User.username) == TOM_USERNAME.lower()).first()
 
 
 def ensure_tom_user() -> User:
@@ -162,3 +164,31 @@ def befriend_tom(user_id: int) -> None:
             sent_at=utcnow(),
         )
     )
+
+
+def ensure_tom_friendship(user_id: int) -> bool:
+    """Ensure Tom exists and ``user_id`` has a Match with Tom.
+
+    Flushes so a newly created Tom row gets an id. Returns True if new rows were
+    added and the caller should ``commit()`` (typically one Match + Message).
+    """
+    tom = ensure_tom_user()
+    db.session.flush()
+    if tom.id == user_id:
+        return False
+    lo, hi = _ordered_pair(user_id, tom.id)
+    if Match.query.filter_by(user_a_id=lo, user_b_id=hi).first():
+        return False
+    befriend_tom(user_id)
+    return True
+
+
+def repair_tom_friendship_if_missing(user_id: int) -> None:
+    """If the Tom match is missing, recreate it and commit. Swallows races/IntegrityError."""
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        if ensure_tom_friendship(user_id):
+            db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
