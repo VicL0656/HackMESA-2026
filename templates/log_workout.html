@@ -72,15 +72,23 @@
     data-follow-split="{% if plan_exercises|length > 0 %}1{% else %}0{% endif %}">
     <input type="hidden" name="split_weekday" value="{{ split_weekday }}">
 
-    <label class="flex cursor-pointer items-start gap-2 text-xs text-slate-400">
-      <input type="checkbox" name="off_plan" value="1" id="off_plan_cb" class="mt-0.5 rounded border-slate-600 text-amber-500">
-      <span><span class="font-semibold text-amber-200/90">Something other than today’s split</span> — choose exercise names yourself, <span class="text-rose-400/85">remove rows</span>, and add rows.</span>
-    </label>
+    <div class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+      <label for="off_plan_cb" class="flex cursor-pointer items-center justify-between gap-3">
+        <span class="text-sm font-medium text-white">Something other than today’s split</span>
+        <input type="checkbox" name="off_plan" value="1" id="off_plan_cb"
+          class="h-5 w-5 shrink-0 rounded border-slate-600 bg-slate-900 text-brand-500 focus:ring-brand-500 focus:ring-offset-0">
+      </label>
+      <p class="text-xs leading-relaxed text-slate-500">Turn this on to pick your own exercise names, remove rows, and add rows instead of following today’s plan exactly.</p>
+    </div>
 
-    <label class="flex cursor-pointer items-start gap-2 text-xs text-slate-400">
-      <input type="checkbox" name="manual_other" value="1" id="manual_other_cb" class="mt-0.5 rounded border-slate-600 text-brand-500">
-      <span><span class="text-sky-300/90">Manual / other</span> — change <span class="text-slate-200">sets and reps</span> (exercise names stay on-plan unless you checked the amber option above). <span class="text-emerald-400/80">Weight</span> and mile time stay editable either way.</span>
-    </label>
+    <div class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+      <label for="manual_other_cb" class="flex cursor-pointer items-center justify-between gap-3">
+        <span class="text-sm font-medium text-white">Manual / other</span>
+        <input type="checkbox" name="manual_other" value="1" id="manual_other_cb"
+          class="h-5 w-5 shrink-0 rounded border-slate-600 bg-slate-900 text-brand-500 focus:ring-brand-500 focus:ring-offset-0">
+      </label>
+      <p class="text-xs leading-relaxed text-slate-500">Lets you edit sets and reps while keeping planned exercise names—unless you turned on “other than today’s split” above. Weight and timed mile fields stay editable either way.</p>
+    </div>
 
     {% include "_exercise_datalist.html" %}
 

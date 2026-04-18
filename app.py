@@ -2,7 +2,7 @@ import os
 from datetime import date, timedelta
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, redirect, request, send_from_directory, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 from flask_socketio import disconnect, join_room
 
@@ -149,6 +149,14 @@ def create_app():
         if current_user.is_authenticated:
             return redirect(url_for("leaderboard.home"))
         return redirect(url_for("auth.login"))
+
+    @app.get("/log")
+    def log_redirect():
+        return redirect(url_for("workouts.log_workout"))
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("404.html"), 404
 
     @app.get("/api/schools")
     def api_schools():
