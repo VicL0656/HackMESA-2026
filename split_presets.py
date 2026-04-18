@@ -145,7 +145,7 @@ def parse_day_plans_from_form(form: Any) -> list[dict[str, Any]]:
         rest_notes = (form.get(f"day_rest_notes_{d}") or "").strip()[:2000]
         items: list[dict[str, Any]] = []
         if custom:
-            for i in range(16):
+            for i in range(32):
                 name = (form.get(f"d{d}_ex_{i}_name") or "").strip()[:120]
                 if not name:
                     continue
@@ -170,16 +170,20 @@ def _format_custom_plan_item(it: dict[str, Any]) -> str:
     sec = it.get("seconds")
     reps = it.get("reps")
     sets = it.get("sets")
-    if sec is not None and sec != "":
+    sr_parts: list[str] = []
+    has_sets_reps = sets is not None and reps is not None and str(sets).strip() != "" and str(reps).strip() != ""
+    if has_sets_reps:
         try:
-            parts.append(f"{int(sec)}s")
+            sr_parts.append(f"{int(sets)}×{int(reps)}")
         except (TypeError, ValueError):
-            parts.append(f"{sec}s")
-    elif sets is not None and reps is not None:
+            sr_parts.append(f"{sets}×{reps}")
+    if sec is not None and str(sec).strip() != "":
         try:
-            parts.append(f"{int(sets)}×{int(reps)}")
+            sr_parts.append(f"{int(sec)}s")
         except (TypeError, ValueError):
-            parts.append(f"{sets}×{reps}")
+            sr_parts.append(f"{sec}s")
+    if sr_parts:
+        parts.append(" · ".join(sr_parts))
     note = str(it.get("note") or "").strip()
     if note:
         parts.append(f"({note})")

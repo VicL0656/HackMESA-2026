@@ -707,6 +707,15 @@ def connect_friend(username: str):
     return render_template("connect.html", target=target)
 
 
+@bp.post("/profile/school")
+@login_required
+def profile_school():
+    current_user.school = (request.form.get("school") or "").strip() or None
+    db.session.commit()
+    flash("School saved.", "success")
+    return redirect(url_for("social.profile"))
+
+
 @bp.post("/profile/update")
 @login_required
 def profile_update():
@@ -721,7 +730,6 @@ def profile_update():
     )
     from workout_split_util import serialize_from_request
 
-    current_user.school = (request.form.get("school") or "").strip() or None
     preset = (request.form.get("split_preset") or "keep").strip().lower()
     posted_focus = [request.form.get(f"day_focus_{i}", "").strip().lower() for i in range(7)]
 
@@ -743,7 +751,7 @@ def profile_update():
     elif preset == "legacy":
         current_user.workout_split = serialize_from_request(request.form)
     db.session.commit()
-    flash("School and split saved.", "success")
+    flash("Weekly split saved.", "success")
     return redirect(url_for("social.profile"))
 
 

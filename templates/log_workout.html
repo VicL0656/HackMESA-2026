@@ -32,10 +32,12 @@
       {% if ex.name %}
       <li>
         <span class="font-semibold text-white">{{ ex.name }}</span>
-        {% if ex.seconds %}
-        <span class="text-slate-400"> · target {{ ex.seconds }}s</span>
+        {% if ex.sets and ex.reps and ex.seconds %}
+        <span class="text-slate-400"> · target {{ ex.sets }}×{{ ex.reps }}, {{ ex.seconds }}s</span>
         {% elif ex.sets and ex.reps %}
         <span class="text-slate-400"> · target {{ ex.sets }}×{{ ex.reps }}</span>
+        {% elif ex.seconds %}
+        <span class="text-slate-400"> · target {{ ex.seconds }}s</span>
         {% endif %}
         {% if ex.note %}<span class="text-slate-500"> — {{ ex.note }}</span>{% endif %}
       </li>
