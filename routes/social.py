@@ -710,15 +710,33 @@ def connect_friend(username: str):
 @bp.post("/profile/update")
 @login_required
 def profile_update():
-    from split_presets import PRESET_KEYS, build_preset
+    import json
+
+    from split_presets import (
+        PRESET_KEYS,
+        build_preset,
+        coerce_day_focus_list,
+        load_v2_split,
+    )
     from workout_split_util import serialize_from_request
 
     current_user.school = (request.form.get("school") or "").strip() or None
     preset = (request.form.get("split_preset") or "keep").strip().lower()
+    posted_focus = [request.form.get(f"day_focus_{i}", "").strip().lower() for i in range(7)]
+
     if preset in PRESET_KEYS:
         built = build_preset(preset)
         if built:
-            current_user.workout_split = built
+            full = json.loads(built)
+            full["day_focus"] = coerce_day_focus_list(preset, full.get("days") or [], posted_focus)
+            current_user.workout_split = json.dumps(full, separators=(",", ":"))
+    elif preset == "keep":
+        data = load_v2_split(current_user.workout_split)
+        if data:
+            p = str(data.get("preset") or "ppl").lower()
+            days = data.get("days") or []
+            data["day_focus"] = coerce_day_focus_list(p, days, posted_focus)
+            current_user.workout_split = json.dumps(data, separators=(",", ":"))
     elif preset == "legacy":
         current_user.workout_split = serialize_from_request(request.form)
     db.session.commit()
@@ -885,11 +903,6 @@ def profile():
     for fr in outgoing:
         outgoing_rows.append((fr, db.session.get(User, fr.to_user_id)))
 
-    goals = (
-        Goal.query.filter_by(user_id=current_user.id)
-        .order_by(Goal.completed.asc(), Goal.id.desc())
-        .all()
-    )
     latest_w = (
         WeightLog.query.filter_by(user_id=current_user.id)
         .order_by(WeightLog.logged_at.desc())
@@ -905,7 +918,16 @@ def profile():
         .all()
     )
 
-    from split_presets import parse_v2, preset_display_name, summary_lines_v2
+    import copy
+
+    from split_presets import (
+        ensure_day_focus,
+        focus_options_for_preset,
+        load_v2_split,
+        parse_v2,
+        preset_display_name,
+        summary_lines_v2,
+    )
     from workout_split_util import card_lines, form_context
 
     _fc = form_context(current_user.workout_split)
@@ -915,6 +937,14 @@ def profile():
     split_v2_lines = summary_lines_v2(current_user.workout_split) if split_is_v2 else []
     split_preset_key = str(_pv.get("preset") or "") if _pv else ""
     split_preset_label = preset_display_name(split_preset_key) if split_is_v2 else ""
+    split_focus_options: list[tuple[str, str]] = []
+    split_day_focus: list[str] | None = None
+    if split_is_v2 and split_preset_key:
+        fd = load_v2_split(current_user.workout_split)
+        if fd:
+            fd2 = copy.deepcopy(fd)
+            split_day_focus = list(ensure_day_focus(fd2))
+            split_focus_options = focus_options_for_preset(split_preset_key)
 
     wl_rows = (
         WeightLog.query.filter_by(user_id=current_user.id)
@@ -939,7 +969,6 @@ def profile():
         match_rows=match_rows,
         incoming_rows=incoming_rows,
         outgoing_rows=outgoing_rows,
-        goals=goals,
         latest_weight=latest_w,
         suggested_friends=suggested,
         recent_workouts=recent_workouts,
@@ -950,6 +979,8 @@ def profile():
         split_v2_lines=split_v2_lines,
         split_preset_key=split_preset_key,
         split_preset_label=split_preset_label,
+        split_focus_options=split_focus_options,
+        split_day_focus=split_day_focus,
         weight_chart_points=weight_chart_points,
         prog_exercise=prog_ex,
         prog_points=prog_points,

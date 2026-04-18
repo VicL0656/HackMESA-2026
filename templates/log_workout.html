@@ -18,6 +18,9 @@
   {% if split_plan %}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-xs font-bold uppercase tracking-wide text-brand-400/90">Today’s plan</h2>
+    {% if split_plan.focus_label %}
+    <p class="mt-1 text-xs font-semibold text-brand-300/90">Day focus: {{ split_plan.focus_label }}</p>
+    {% endif %}
     {% if split_plan.rest %}
     <p class="mt-2 text-sm text-slate-300">Scheduled rest day — you can still log if you train anyway.</p>
     {% else %}
