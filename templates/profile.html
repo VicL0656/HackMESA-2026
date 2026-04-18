@@ -102,28 +102,73 @@
           <option value="legacy">Save using legacy checkboxes below</option>
         </select>
       </div>
-      {% if split_is_v2 and split_day_focus and split_focus_options %}
+      {% if split_is_v2 and split_day_focus and split_focus_options and split_day_plans %}
       {% set day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-      <div class="rounded-xl border border-brand-500/25 bg-brand-500/5 p-3">
+      {% set plan_slots = 8 %}
+      {% include '_exercise_datalist.html' %}
+      <div class="rounded-xl border border-brand-500/25 bg-brand-500/5 p-3" id="split-week-editor" data-rest-value="rest">
         <p class="text-xs font-bold uppercase tracking-wide text-brand-400/90">Your week · {{ split_preset_label }}</p>
-        <p class="mt-1 text-[10px] text-slate-500">Choose one focus per day (or Rest). This drives labels on the Log tab. Exercise ideas below follow the template slot for that weekday.</p>
-        <div class="mt-3 space-y-3">
+        <p class="mt-1 text-[10px] text-slate-500">Choose one focus per day. On rest days you can leave notes. Optionally check “Plan my own exercises” and use the same exercise list as the Log tab, with sets, reps, time (seconds), or notes per lift.</p>
+        <div class="mt-3 space-y-4">
           {% for d in range(7) %}
-          <div class="rounded-lg border border-slate-800/80 bg-slate-950/40 p-2">
-            <p class="text-[11px] font-semibold text-slate-300">{{ day_names[d] }}</p>
+          {% set plan = split_day_plans[d] %}
+          {% set plist = plan['items'] if plan and plan['items'] else [] %}
+          <div class="rounded-lg border border-slate-800/80 bg-slate-950/40 p-3" data-day-card="{{ d }}">
+            <p class="text-xs font-semibold text-slate-300">{{ day_names[d] }}</p>
             <div class="mt-2 flex flex-wrap gap-x-2 gap-y-1.5">
               {% for val, lab in split_focus_options %}
               <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-1 text-[11px] text-slate-200">
-                <input type="radio" name="day_focus_{{ d }}" value="{{ val }}" class="border-slate-600 text-brand-500" {% if split_day_focus[d] == val %}checked{% endif %}>
+                <input type="radio" name="day_focus_{{ d }}" value="{{ val }}" class="day-focus-radio border-slate-600 text-brand-500" data-day="{{ d }}" {% if split_day_focus[d] == val %}checked{% endif %}>
                 <span>{{ lab }}</span>
               </label>
+              {% endfor %}
+            </div>
+            <div class="day-rest-notes-wrap mt-2 {% if split_day_focus[d] != 'rest' %}hidden{% endif %}" data-day-rest-wrap="{{ d }}">
+              <label class="block text-[10px] font-medium text-slate-400" for="day_rest_notes_{{ d }}">Rest day notes</label>
+              <textarea id="day_rest_notes_{{ d }}" name="day_rest_notes_{{ d }}" rows="2" maxlength="2000" placeholder="Recovery walk, deload, travel day, etc."
+                class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white placeholder:text-slate-600">{{ plan['rest_notes'] if plan else '' }}</textarea>
+            </div>
+            <div class="mt-3 flex items-start gap-2">
+              <input type="checkbox" name="day_custom_{{ d }}" value="1" id="day_custom_{{ d }}" class="day-custom-cb mt-0.5 rounded border-slate-600 text-brand-500" data-day="{{ d }}" {% if plan and plan['custom'] %}checked{% endif %}>
+              <label for="day_custom_{{ d }}" class="cursor-pointer text-[11px] leading-snug text-slate-300">Plan my own exercises for this day</label>
+            </div>
+            <div class="day-custom-plan-wrap mt-2 space-y-2 {% if not plan or not plan['custom'] %}hidden{% endif %}" data-day-custom-wrap="{{ d }}">
+              {% for i in range(plan_slots) %}
+              {% set it = plist[i] if i < (plist|length) else none %}
+              <div class="grid grid-cols-1 gap-2 rounded-lg border border-slate-800/80 bg-slate-900/50 p-2 sm:grid-cols-12 sm:items-end">
+                <div class="sm:col-span-4">
+                  <label class="block text-[9px] text-slate-500" for="d{{ d }}_ex_{{ i }}_name">Exercise</label>
+                  <input list="gymlink-exercise-presets" id="d{{ d }}_ex_{{ i }}_name" name="d{{ d }}_ex_{{ i }}_name" value="{% if it %}{{ it.name }}{% endif %}" maxlength="120" placeholder="Choose or type"
+                    class="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-[9px] text-slate-500">Sets</label>
+                  <input type="number" name="d{{ d }}_ex_{{ i }}_sets" value="{% if it and it.sets is not none %}{{ it.sets }}{% endif %}" min="0" step="1" placeholder="—"
+                    class="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-[9px] text-slate-500">Reps</label>
+                  <input type="number" name="d{{ d }}_ex_{{ i }}_reps" value="{% if it and it.reps is not none %}{{ it.reps }}{% endif %}" min="0" step="1" placeholder="—"
+                    class="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-[9px] text-slate-500">Time (sec)</label>
+                  <input type="number" name="d{{ d }}_ex_{{ i }}_seconds" value="{% if it and it.seconds is not none %}{{ it.seconds }}{% endif %}" min="0" step="1" placeholder="—"
+                    class="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white">
+                </div>
+                <div class="sm:col-span-12">
+                  <label class="block text-[9px] text-slate-500">Note</label>
+                  <input type="text" name="d{{ d }}_ex_{{ i }}_note" value="{% if it and it.note %}{{ it.note }}{% endif %}" maxlength="500" placeholder="Optional"
+                    class="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white">
+                </div>
+              </div>
               {% endfor %}
             </div>
           </div>
           {% endfor %}
         </div>
         {% if split_v2_lines %}
-        <p class="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise ideas (by weekday slot)</p>
+        <p class="mt-4 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ split_exercise_ideas_intro }}</p>
         <ul class="mt-1 list-inside list-disc space-y-1 text-xs text-slate-300">
           {% for line in split_v2_lines %}<li>{{ line }}</li>{% endfor %}
         </ul>
@@ -452,6 +497,56 @@
     }
     cb.addEventListener("change", sync);
   });
+})();
+(function () {
+  var root = document.getElementById("split-week-editor");
+  if (!root) return;
+  var restVal = root.getAttribute("data-rest-value") || "rest";
+
+  function isRestForDay(d) {
+    var el = root.querySelector('input[name="day_focus_' + d + '"]:checked');
+    return el && el.value === restVal;
+  }
+
+  function syncDay(d) {
+    var onRest = isRestForDay(d);
+    var restWrap = root.querySelector('[data-day-rest-wrap="' + d + '"]');
+    var customCb = root.querySelector("#day_custom_" + d);
+    var customWrap = root.querySelector('[data-day-custom-wrap="' + d + '"]');
+    var notes = document.getElementById("day_rest_notes_" + d);
+
+    if (restWrap) {
+      if (onRest) restWrap.classList.remove("hidden");
+      else restWrap.classList.add("hidden");
+    }
+    if (notes) notes.disabled = !onRest;
+
+    if (customWrap && customCb) {
+      if (onRest) {
+        customWrap.classList.add("hidden");
+      } else if (customCb.checked) {
+        customWrap.classList.remove("hidden");
+      } else {
+        customWrap.classList.add("hidden");
+      }
+      customWrap.querySelectorAll("input").forEach(function (inp) {
+        if (inp.classList && inp.classList.contains("day-custom-cb")) return;
+        inp.disabled = !customCb.checked || onRest;
+      });
+    }
+  }
+
+  function syncAll() {
+    for (var d = 0; d < 7; d++) syncDay(d);
+  }
+
+  root.querySelectorAll(".day-focus-radio").forEach(function (r) {
+    r.addEventListener("change", syncAll);
+  });
+  root.querySelectorAll(".day-custom-cb").forEach(function (c) {
+    c.addEventListener("change", syncAll);
+  });
+  syncAll();
 })();
 </script>
 {% endblock %}

@@ -227,6 +227,12 @@ def create_app():
         except Exception:
             return {"inbox_unread_count": 0}
 
+    @app.context_processor
+    def inject_exercise_preset_names():
+        from exercise_presets import EXERCISE_PRESET_NAMES
+
+        return {"exercise_preset_names": EXERCISE_PRESET_NAMES}
+
     @app.get("/api/me/workout-today")
     @login_required
     def api_workout_today():

@@ -1,4 +1,4 @@
-"""Workout split v2: JSON in User.workout_split with preset templates + per-day focus."""
+"""Workout split v2: JSON in User.workout_split — template days, day_focus, day_plans (custom + rest notes)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,12 @@ PRESET_LABELS: dict[str, str] = {
 FOCUS_OPTIONS: dict[str, list[tuple[str, str]]] = {
     "upper_lower": [("upper", "Upper"), ("lower", "Lower"), ("rest", "Rest")],
     "ppl": [("push", "Push"), ("pull", "Pull"), ("legs", "Legs"), ("rest", "Rest")],
-    "arnold": [("push", "Push"), ("pull", "Pull"), ("legs", "Legs"), ("rest", "Rest")],
+    "arnold": [
+        ("chest_back", "Chest / Back"),
+        ("shoulder_arms", "Shoulder / Arms"),
+        ("legs", "Legs"),
+        ("rest", "Rest"),
+    ],
     "bro_5day": [
         ("chest", "Chest"),
         ("back", "Back"),
@@ -33,6 +38,21 @@ FOCUS_OPTIONS: dict[str, list[tuple[str, str]]] = {
     ],
     "full_body_3": [("full_body", "Full body"), ("rest", "Rest")],
 }
+
+# Short copy for the “template ideas” list under the week planner.
+EXERCISE_IDEAS_INTRO: dict[str, str] = {
+    "upper_lower": "Template ideas for each weekday slot (upper vs lower vs rest in the preset).",
+    "ppl": "Template ideas for each weekday slot (push / pull / legs pattern in the preset).",
+    "arnold": "Template ideas for each weekday slot (chest-back, shoulder-arms, legs rotation in the preset).",
+    "bro_5day": "Template ideas for each weekday slot (chest, back, shoulders, legs, arms in the preset).",
+    "full_body_3": "Template ideas for each weekday slot (full-body sessions vs rest in the preset).",
+    "custom": "Template ideas for each weekday slot.",
+}
+
+
+def exercise_ideas_intro(preset: str | None) -> str:
+    p = (preset or "custom").strip().lower().replace("-", "_")
+    return EXERCISE_IDEAS_INTRO.get(p, EXERCISE_IDEAS_INTRO["custom"])
 
 
 def preset_display_name(key: str | None) -> str:
@@ -62,6 +82,110 @@ def _ex(name: str, sets: int = 3, reps: int = 8) -> dict[str, Any]:
     return {"name": name, "sets": sets, "reps": reps, "manual": False}
 
 
+def _empty_day_plan() -> dict[str, Any]:
+    return {"custom": False, "rest_notes": "", "items": []}
+
+
+def ensure_day_plans(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ensure data['day_plans'] exists (7 entries). Mutates data. Returns list."""
+    cur = data.get("day_plans")
+    if isinstance(cur, list) and len(cur) == 7:
+        fixed: list[dict[str, Any]] = []
+        for i in range(7):
+            e = cur[i] if isinstance(cur[i], dict) else {}
+            items_in = e.get("items")
+            items: list[dict[str, Any]] = []
+            if isinstance(items_in, list):
+                for it in items_in:
+                    if not isinstance(it, dict):
+                        continue
+                    nm = str(it.get("name") or "").strip()[:120]
+                    if not nm:
+                        continue
+                    items.append(
+                        {
+                            "name": nm,
+                            "sets": it.get("sets"),
+                            "reps": it.get("reps"),
+                            "seconds": it.get("seconds"),
+                            "note": str(it.get("note") or "").strip()[:500],
+                        }
+                    )
+            fixed.append(
+                {
+                    "custom": bool(e.get("custom")),
+                    "rest_notes": str(e.get("rest_notes") or "").strip()[:2000],
+                    "items": items,
+                }
+            )
+        data["day_plans"] = fixed
+        return fixed
+    dp = [_empty_day_plan() for _ in range(7)]
+    data["day_plans"] = dp
+    return dp
+
+
+def _opt_int(raw: Any) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def parse_day_plans_from_form(form: Any) -> list[dict[str, Any]]:
+    """Read per-day custom plan + rest notes from POST (Flask request.form)."""
+    out: list[dict[str, Any]] = []
+    for d in range(7):
+        custom = form.get(f"day_custom_{d}") == "1"
+        rest_notes = (form.get(f"day_rest_notes_{d}") or "").strip()[:2000]
+        items: list[dict[str, Any]] = []
+        if custom:
+            for i in range(16):
+                name = (form.get(f"d{d}_ex_{i}_name") or "").strip()[:120]
+                if not name:
+                    continue
+                items.append(
+                    {
+                        "name": name,
+                        "sets": _opt_int(form.get(f"d{d}_ex_{i}_sets")),
+                        "reps": _opt_int(form.get(f"d{d}_ex_{i}_reps")),
+                        "seconds": _opt_int(form.get(f"d{d}_ex_{i}_seconds")),
+                        "note": (form.get(f"d{d}_ex_{i}_note") or "").strip()[:500],
+                    }
+                )
+        out.append({"custom": custom, "rest_notes": rest_notes, "items": items})
+    return out
+
+
+def _format_custom_plan_item(it: dict[str, Any]) -> str:
+    nm = str(it.get("name") or "").strip()
+    if not nm:
+        return ""
+    parts = [nm]
+    sec = it.get("seconds")
+    reps = it.get("reps")
+    sets = it.get("sets")
+    if sec is not None and sec != "":
+        try:
+            parts.append(f"{int(sec)}s")
+        except (TypeError, ValueError):
+            parts.append(f"{sec}s")
+    elif sets is not None and reps is not None:
+        try:
+            parts.append(f"{int(sets)}×{int(reps)}")
+        except (TypeError, ValueError):
+            parts.append(f"{sets}×{reps}")
+    note = str(it.get("note") or "").strip()
+    if note:
+        parts.append(f"({note})")
+    return " ".join(parts) if len(parts) > 1 else nm
+
+
 def default_day_focus(preset: str, days: list[Any]) -> list[str]:
     """Infer default day_focus (7 strings) from preset + template rest flags."""
     p = (preset or "").strip().lower().replace("-", "_")
@@ -83,7 +207,18 @@ def default_day_focus(preset: str, days: list[Any]) -> list[str]:
                 train_i += 1
         return out
 
-    if p in ("ppl", "arnold"):
+    if p == "arnold":
+        cyc = ("chest_back", "shoulder_arms", "legs")
+        t = 0
+        for i in range(7):
+            if is_rest(i):
+                out[i] = "rest"
+            else:
+                out[i] = cyc[t % 3]
+                t += 1
+        return out
+
+    if p == "ppl":
         cyc = ("push", "pull", "legs")
         t = 0
         for i in range(7):
@@ -231,7 +366,11 @@ def build_preset(preset: str) -> str | None:
         ]
 
     df = default_day_focus(p, days)
-    return json.dumps({"version": VERSION, "preset": p, "days": days, "day_focus": df}, separators=(",", ":"))
+    dp = [_empty_day_plan() for _ in range(7)]
+    return json.dumps(
+        {"version": VERSION, "preset": p, "days": days, "day_focus": df, "day_plans": dp},
+        separators=(",", ":"),
+    )
 
 
 def parse_v2(raw: str | None) -> dict[str, Any] | None:
@@ -249,6 +388,26 @@ def parse_v2(raw: str | None) -> dict[str, Any] | None:
     return {"preset": str(data.get("preset") or "custom"), "days": days}
 
 
+def _template_exercise_parts(d: dict[str, Any]) -> list[str]:
+    exs = d.get("exercises") or []
+    if not isinstance(exs, list) or not exs:
+        return []
+    parts: list[str] = []
+    for e in exs:
+        if not isinstance(e, dict):
+            continue
+        nm = str(e.get("name") or "").strip()
+        if not nm:
+            continue
+        s = e.get("sets")
+        r = e.get("reps")
+        if s and r:
+            parts.append(f"{nm} ({s}×{r})")
+        else:
+            parts.append(nm)
+    return parts
+
+
 def summary_lines_v2(raw: str | None) -> list[str]:
     data = load_v2_split(raw)
     if not data:
@@ -259,33 +418,43 @@ def summary_lines_v2(raw: str | None) -> list[str]:
     days = data.get("days") or []
     work = copy.deepcopy(data)
     focus = ensure_day_focus(work)
+    plans = ensure_day_plans(work)
     lines: list[str] = []
     for i, d in enumerate(days):
         if not isinstance(d, dict):
             continue
         fl = focus_label_for(preset, focus[i])
+        plan = plans[i] if i < len(plans) else _empty_day_plan()
         if focus[i] == "rest":
-            lines.append(f"{DAY_LABELS[i]} ({fl})")
+            notes = (plan.get("rest_notes") or "").strip()
+            if notes:
+                lines.append(f"{DAY_LABELS[i]} ({fl}): {notes}")
+            else:
+                lines.append(f"{DAY_LABELS[i]} ({fl})")
             continue
-        exs = d.get("exercises") or []
-        if d.get("rest") or not isinstance(exs, list) or not exs:
+        if plan.get("custom") and plan.get("items"):
+            bits = [_format_custom_plan_item(x) for x in plan["items"]]
+            bits = [b for b in bits if b]
+            lines.append(f"{DAY_LABELS[i]} ({fl}): " + (" · ".join(bits) if bits else "—"))
+            continue
+        if d.get("rest"):
             lines.append(f"{DAY_LABELS[i]} ({fl}): —")
             continue
-        parts = []
-        for e in exs:
-            if not isinstance(e, dict):
-                continue
-            nm = str(e.get("name") or "").strip()
-            if not nm:
-                continue
-            s = e.get("sets")
-            r = e.get("reps")
-            if s and r:
-                parts.append(f"{nm} ({s}×{r})")
-            else:
-                parts.append(nm)
+        parts = _template_exercise_parts(d)
         lines.append(f"{DAY_LABELS[i]} ({fl}): " + (" · ".join(parts) if parts else "—"))
     return lines
+
+
+def _plan_item_to_exercise_dict(it: dict[str, Any]) -> dict[str, Any]:
+    """Shape for log_workout template (exercises list)."""
+    out: dict[str, Any] = {
+        "name": str(it.get("name") or "").strip(),
+        "sets": it.get("sets"),
+        "reps": it.get("reps"),
+        "seconds": it.get("seconds"),
+        "note": str(it.get("note") or "").strip(),
+    }
+    return out
 
 
 def today_plan(raw: str | None, weekday_py: int) -> dict[str, Any] | None:
@@ -300,10 +469,26 @@ def today_plan(raw: str | None, weekday_py: int) -> dict[str, Any] | None:
     preset = str(data.get("preset") or "ppl")
     work = copy.deepcopy(data)
     focus = ensure_day_focus(work)
+    plans = ensure_day_plans(work)
+    plan = plans[wd] if wd < len(plans) else _empty_day_plan()
     fv = focus[wd]
     flabel = focus_label_for(preset, fv)
     if fv == "rest":
-        return {"rest": True, "exercises": [], "focus": fv, "focus_label": flabel}
+        return {
+            "rest": True,
+            "exercises": [],
+            "focus": fv,
+            "focus_label": flabel,
+            "rest_notes": (plan.get("rest_notes") or "").strip(),
+        }
+    if plan.get("custom") and plan.get("items"):
+        ex_out = [_plan_item_to_exercise_dict(x) for x in plan["items"] if str(x.get("name") or "").strip()]
+        return {
+            "rest": False,
+            "exercises": ex_out,
+            "focus": fv,
+            "focus_label": flabel,
+        }
     if day.get("rest"):
         return {"rest": False, "exercises": [], "focus": fv, "focus_label": flabel}
     return {

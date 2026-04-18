@@ -23,11 +23,22 @@
     {% endif %}
     {% if split_plan.rest %}
     <p class="mt-2 text-sm text-slate-300">Scheduled rest day — you can still log if you train anyway.</p>
+    {% if split_plan.rest_notes %}
+    <p class="mt-2 rounded-lg border border-slate-700/80 bg-slate-950/50 px-3 py-2 text-xs text-slate-300">{{ split_plan.rest_notes }}</p>
+    {% endif %}
     {% else %}
     <ul class="mt-2 space-y-1 text-sm text-slate-200">
       {% for ex in split_plan.exercises %}
       {% if ex.name %}
-      <li><span class="font-semibold text-white">{{ ex.name }}</span>{% if ex.sets and ex.reps %} · target {{ ex.sets }}×{{ ex.reps }}{% endif %}</li>
+      <li>
+        <span class="font-semibold text-white">{{ ex.name }}</span>
+        {% if ex.seconds %}
+        <span class="text-slate-400"> · target {{ ex.seconds }}s</span>
+        {% elif ex.sets and ex.reps %}
+        <span class="text-slate-400"> · target {{ ex.sets }}×{{ ex.reps }}</span>
+        {% endif %}
+        {% if ex.note %}<span class="text-slate-500"> — {{ ex.note }}</span>{% endif %}
+      </li>
       {% endif %}
       {% endfor %}
     </ul>
@@ -43,29 +54,10 @@
     </label>
     <div>
       <label class="block text-xs font-medium text-slate-400" for="exercise_name">Exercise</label>
-      <input list="exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
+      {% include "_exercise_datalist.html" %}
+      <input list="gymlink-exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
         class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"
         placeholder="Bench Press">
-      <datalist id="exercise-presets">
-        <option>Bench Press</option>
-        <option>Squat</option>
-        <option>Deadlift</option>
-        <option>Overhead Press</option>
-        <option>Pull Ups</option>
-        <option>Lat Pulldown</option>
-        <option>Barbell Row</option>
-        <option>Dumbbell Row</option>
-        <option>Leg Press</option>
-        <option>Leg Curl</option>
-        <option>Romanian Deadlift</option>
-        <option>Hip Thrust</option>
-        <option>Lateral Raise</option>
-        <option>Face Pull</option>
-        <option>Tricep Pushdown</option>
-        <option>Barbell Curl</option>
-        <option>Plank</option>
-        <option>Other (type below)</option>
-      </datalist>
     </div>
     <div class="grid grid-cols-2 gap-3">
       <div>

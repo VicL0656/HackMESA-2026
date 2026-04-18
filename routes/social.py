@@ -717,6 +717,7 @@ def profile_update():
         build_preset,
         coerce_day_focus_list,
         load_v2_split,
+        parse_day_plans_from_form,
     )
     from workout_split_util import serialize_from_request
 
@@ -729,6 +730,7 @@ def profile_update():
         if built:
             full = json.loads(built)
             full["day_focus"] = coerce_day_focus_list(preset, full.get("days") or [], posted_focus)
+            full["day_plans"] = parse_day_plans_from_form(request.form)
             current_user.workout_split = json.dumps(full, separators=(",", ":"))
     elif preset == "keep":
         data = load_v2_split(current_user.workout_split)
@@ -736,6 +738,7 @@ def profile_update():
             p = str(data.get("preset") or "ppl").lower()
             days = data.get("days") or []
             data["day_focus"] = coerce_day_focus_list(p, days, posted_focus)
+            data["day_plans"] = parse_day_plans_from_form(request.form)
             current_user.workout_split = json.dumps(data, separators=(",", ":"))
     elif preset == "legacy":
         current_user.workout_split = serialize_from_request(request.form)
@@ -922,6 +925,8 @@ def profile():
 
     from split_presets import (
         ensure_day_focus,
+        ensure_day_plans,
+        exercise_ideas_intro,
         focus_options_for_preset,
         load_v2_split,
         parse_v2,
@@ -939,12 +944,16 @@ def profile():
     split_preset_label = preset_display_name(split_preset_key) if split_is_v2 else ""
     split_focus_options: list[tuple[str, str]] = []
     split_day_focus: list[str] | None = None
+    split_day_plans: list[dict] | None = None
+    split_exercise_ideas_intro = ""
     if split_is_v2 and split_preset_key:
         fd = load_v2_split(current_user.workout_split)
         if fd:
             fd2 = copy.deepcopy(fd)
             split_day_focus = list(ensure_day_focus(fd2))
+            split_day_plans = list(ensure_day_plans(fd2))
             split_focus_options = focus_options_for_preset(split_preset_key)
+            split_exercise_ideas_intro = exercise_ideas_intro(split_preset_key)
 
     wl_rows = (
         WeightLog.query.filter_by(user_id=current_user.id)
@@ -981,6 +990,8 @@ def profile():
         split_preset_label=split_preset_label,
         split_focus_options=split_focus_options,
         split_day_focus=split_day_focus,
+        split_day_plans=split_day_plans,
+        split_exercise_ideas_intro=split_exercise_ideas_intro,
         weight_chart_points=weight_chart_points,
         prog_exercise=prog_ex,
         prog_points=prog_points,

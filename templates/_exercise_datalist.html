@@ -1,0 +1,7 @@
+{# Shared list for log + profile. Pass list_id (default gymlink-exercise-presets). #}
+{% set lid = list_id|default('gymlink-exercise-presets') %}
+<datalist id="{{ lid }}">
+  {% for name in exercise_preset_names %}
+  <option value="{{ name }}">{{ name }}</option>
+  {% endfor %}
+</datalist>
