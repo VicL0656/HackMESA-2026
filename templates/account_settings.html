@@ -12,6 +12,9 @@
     <a href="#password" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Password</a>
     <a href="#home-gym" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Home gym</a>
     <a href="#training" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Training</a>
+    {% if show_delete_account %}
+    <a href="#delete-account" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-rose-300">Account</a>
+    {% endif %}
   </nav>
 
   <section id="profile" class="scroll-mt-4 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
@@ -128,6 +131,27 @@
       <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">Save training</button>
     </form>
   </section>
+
+  {% if show_delete_account %}
+  <section id="delete-account" class="scroll-mt-4 space-y-3 rounded-2xl border border-rose-900/50 bg-rose-950/20 p-4">
+    <h2 class="text-sm font-semibold text-rose-100">Delete account</h2>
+    <p class="text-xs text-rose-200/80">This permanently removes your profile, workouts, friends, messages, and inbox. It cannot be undone.</p>
+    <form method="post" action="{{ url_for('account.delete_account') }}" class="space-y-3" onsubmit="return confirm('Permanently delete your GymLink account? This cannot be undone.');">
+      <div>
+        <label class="block text-xs font-medium text-rose-200/90" for="delete_password">Current password</label>
+        <input id="delete_password" name="password" type="password" required autocomplete="current-password"
+          class="mt-1 w-full rounded-xl border border-rose-900/60 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-rose-200/90" for="delete_confirm">Type <span class="font-mono text-white">DELETE MY ACCOUNT</span> to confirm</label>
+        <input id="delete_confirm" name="delete_confirm" type="text" required autocomplete="off"
+          placeholder="DELETE MY ACCOUNT"
+          class="mt-1 w-full rounded-xl border border-rose-900/60 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500">
+      </div>
+      <button type="submit" class="w-full rounded-xl border border-rose-600 bg-rose-950/80 px-4 py-2.5 text-sm font-semibold text-rose-100 hover:bg-rose-900">Delete my account forever</button>
+    </form>
+  </section>
+  {% endif %}
 
   <p class="text-center text-xs text-slate-500">
     <a href="{{ url_for('social.profile') }}" class="font-semibold text-brand-500 hover:text-brand-400">Back to profile</a>

@@ -12,6 +12,7 @@ from extensions import bcrypt, db
 from mail_util import mail_configured, send_email
 from models import PasswordResetToken, Streak, User
 from models import utcnow
+from tom_friend import TOM_EMAIL, befriend_tom, ensure_tom_user, is_reserved_username
 from username_utils import USERNAME_RE, normalize_username, resolve_user_by_email_or_username
 
 bp = Blueprint("auth", __name__)
@@ -54,6 +55,14 @@ def register():
             flash("That username is already taken.", "error")
             return render_template("register.html")
 
+        if is_reserved_username(username):
+            flash("That username is reserved.", "error")
+            return render_template("register.html")
+
+        if email.strip().lower() == TOM_EMAIL.lower():
+            flash("That sign-in address is reserved.", "error")
+            return render_template("register.html")
+
         pw_hash = bcrypt.generate_password_hash(password)
         if isinstance(pw_hash, bytes):
             pw_hash = pw_hash.decode("utf-8")
@@ -71,6 +80,8 @@ def register():
         db.session.add(user)
         db.session.flush()
         db.session.add(Streak(user_id=user.id, current_streak=0, longest_streak=0, last_logged_date=None))
+        ensure_tom_user()
+        befriend_tom(user.id)
         db.session.commit()
         remember = bool(request.form.get("remember"))
         login_user(user, remember=remember)
@@ -94,6 +105,9 @@ def login():
             return render_template("login.html")
         remember = bool(request.form.get("remember"))
         login_user(user, remember=remember)
+        ensure_tom_user()
+        befriend_tom(user.id)
+        db.session.commit()
         next_url = request.form.get("next") or request.args.get("next")
         if next_url and next_url.startswith("/"):
             return redirect(next_url)

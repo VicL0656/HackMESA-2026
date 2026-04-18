@@ -6,14 +6,15 @@ import json
 import math
 import re
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, logout_user
 
 from extensions import bcrypt, db
 from geocode import geocode_city
 from gym_store import get_or_create_osm_gym
 from models import Gym
 from osm_gyms import discover_gyms_nearby
+from tom_friend import is_reserved_username, is_tom_user
 from username_utils import USERNAME_RE, normalize_username
 
 bp = Blueprint("account", __name__, url_prefix="/account")
@@ -28,7 +29,11 @@ def _settings_context():
         workout_day_set = {int(x) for x in json.loads(wd_raw)}
     except (json.JSONDecodeError, TypeError, ValueError):
         workout_day_set = set()
-    return {"gyms": gyms, "workout_day_set": workout_day_set}
+    return {
+        "gyms": gyms,
+        "workout_day_set": workout_day_set,
+        "show_delete_account": not is_tom_user(current_user),
+    }
 
 
 def _settings_render():
@@ -67,6 +72,9 @@ def settings():
             clash = User.query.filter(User.username == username, User.id != current_user.id).first()
             if clash:
                 flash("That username is already taken.", "error")
+                return redirect(url_for("account.settings"))
+            if is_reserved_username(username):
+                flash("That username is reserved for the default friend account.", "error")
                 return redirect(url_for("account.settings"))
             current_user.name = name[:120]
             current_user.username = username
@@ -227,3 +235,27 @@ def api_gym_manual():
     current_user.home_gym_id = g.id
     db.session.commit()
     return jsonify({"ok": True, "gym": {"id": g.id, "name": g.name}})
+
+
+@bp.post("/delete-account")
+@login_required
+def delete_account():
+    if is_tom_user(current_user):
+        abort(403)
+    pw = request.form.get("password") or ""
+    confirm = (request.form.get("delete_confirm") or "").strip()
+    if confirm != "DELETE MY ACCOUNT":
+        flash("Type DELETE MY ACCOUNT in the confirmation box to delete your account.", "error")
+        return redirect(url_for("account.settings") + "#delete-account")
+    if not bcrypt.check_password_hash(current_user.password_hash, pw):
+        flash("Password is incorrect.", "error")
+        return redirect(url_for("account.settings") + "#delete-account")
+
+    from user_delete import delete_user_account
+
+    uid = current_user.id
+    logout_user()
+    delete_user_account(uid)
+    db.session.commit()
+    flash("Your account has been deleted.", "info")
+    return redirect(url_for("auth.login"))

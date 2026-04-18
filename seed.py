@@ -136,6 +136,13 @@ def main() -> None:
             users.append(user)
         db.session.flush()
 
+        from tom_friend import TOM_USERNAME, befriend_tom, ensure_tom_user
+
+        ensure_tom_user()
+        db.session.flush()
+        for u in users:
+            befriend_tom(u.id)
+
         today = date.today()
         yesterday = today - timedelta(days=1)
 
@@ -259,6 +266,7 @@ def main() -> None:
         db.session.commit()
         print("Seed complete.")
         print(f"Demo login (any user): email from seed list, password: password123")
+        print(f"Default friend Tom: username {TOM_USERNAME}, password: password123")
         print("Gym check-in: uses your location + OpenStreetMap (no fixed demo city).")
 
 
