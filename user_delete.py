@@ -7,8 +7,13 @@ from sqlalchemy import or_
 from extensions import db
 from models import (
     CheckIn,
+    DailyChallengeComplete,
+    FriendFavorite,
+    FriendGroup,
+    FriendGroupMember,
     FriendRequest,
     Goal,
+    GroupMessage,
     Match,
     Message,
     Notification,
@@ -44,9 +49,28 @@ def delete_user_account(user_id: int) -> None:
     FriendRequest.query.filter(
         or_(FriendRequest.from_user_id == uid, FriendRequest.to_user_id == uid),
     ).delete(synchronize_session=False)
+    FriendFavorite.query.filter(
+        or_(FriendFavorite.user_id == uid, FriendFavorite.friend_user_id == uid),
+    ).delete(synchronize_session=False)
+    DailyChallengeComplete.query.filter_by(user_id=uid).delete(synchronize_session=False)
     Swipe.query.filter(
         or_(Swipe.swiper_id == uid, Swipe.swipee_id == uid),
     ).delete(synchronize_session=False)
+
+    for g in FriendGroup.query.filter_by(creator_id=uid).all():
+        gid = g.id
+        FriendGroupMember.query.filter_by(group_id=gid).delete(synchronize_session=False)
+        GroupMessage.query.filter_by(group_id=gid).delete(synchronize_session=False)
+        db.session.delete(g)
+    member_gids = [r.group_id for r in FriendGroupMember.query.filter_by(user_id=uid).all()]
+    FriendGroupMember.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    GroupMessage.query.filter_by(sender_id=uid).delete(synchronize_session=False)
+    for gid in set(member_gids):
+        if FriendGroupMember.query.filter_by(group_id=gid).count() == 0:
+            GroupMessage.query.filter_by(group_id=gid).delete(synchronize_session=False)
+            fg = db.session.get(FriendGroup, gid)
+            if fg:
+                db.session.delete(fg)
 
     Goal.query.filter_by(user_id=uid).delete(synchronize_session=False)
     WeightLog.query.filter_by(user_id=uid).delete(synchronize_session=False)

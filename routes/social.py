@@ -7,7 +7,22 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_, desc, or_
 
 from extensions import db
-from models import FriendRequest, Goal, Match, Message, OutdoorActivity, Streak, Swipe, User, WeightLog, Workout
+from models import (
+    FriendFavorite,
+    FriendGroup,
+    FriendGroupMember,
+    FriendRequest,
+    Goal,
+    GroupMessage,
+    Match,
+    Message,
+    OutdoorActivity,
+    Streak,
+    Swipe,
+    User,
+    WeightLog,
+    Workout,
+)
 from models import utcnow
 from uploads_util import save_uploaded_image
 from username_utils import (
@@ -17,6 +32,22 @@ from username_utils import (
 )
 
 bp = Blueprint("social", __name__)
+
+MAX_GC_MEMBERS = 16
+
+
+def _redirect_after_friend_form(default_endpoint: str = "social.profile"):
+    """Optional same-origin path from POST `redirect_to` (e.g. return to Home)."""
+    n = (request.form.get("redirect_to") or "").strip()
+    if (
+        n.startswith("/")
+        and not n.startswith("//")
+        and "\n" not in n
+        and "\r" not in n
+        and len(n) < 512
+    ):
+        return redirect(n)
+    return redirect(url_for(default_endpoint))
 
 
 def _friend_ids(user_id: int) -> set[int]:
@@ -161,21 +192,21 @@ def friends_add():
     raw = (request.form.get("friend_handle") or request.form.get("email") or "").strip()
     if not raw:
         flash("Enter your friend’s @username or the sign-in they use for GymLink.", "error")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     other = resolve_user_by_email_or_username(raw)
     if not other:
         flash("No GymLink account matches that handle or sign-in.", "error")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     if other.id == current_user.id:
         flash("You cannot add yourself.", "error")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     low, high = _ordered_pair(current_user.id, other.id)
     if Match.query.filter_by(user_a_id=low, user_b_id=high).first():
         flash("You are already gym friends with that lifter.", "info")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     reverse = FriendRequest.query.filter_by(
         from_user_id=other.id,
@@ -190,7 +221,7 @@ def friends_add():
         mark_friend_requests_between_users_read(current_user.id, other.id)
         db.session.commit()
         flash(f"You and {other.name} are now gym friends.", "success")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     outgoing = FriendRequest.query.filter_by(
         from_user_id=current_user.id,
@@ -199,15 +230,15 @@ def friends_add():
     if outgoing:
         if outgoing.status == "pending":
             flash("Friend request already sent.", "info")
-            return redirect(url_for("social.profile"))
+            return _redirect_after_friend_form()
         if outgoing.status == "declined":
             outgoing.status = "pending"
             outgoing.created_at = utcnow()
             db.session.commit()
             flash("Friend request sent again.", "success")
-            return redirect(url_for("social.profile"))
+            return _redirect_after_friend_form()
         flash("You are already connected with that lifter.", "info")
-        return redirect(url_for("social.profile"))
+        return _redirect_after_friend_form()
 
     fr = FriendRequest(
         from_user_id=current_user.id,
@@ -222,7 +253,31 @@ def friends_add():
     notify_friend_request_created(fr)
     db.session.commit()
     flash(f"Friend request sent to {other.name}.", "success")
-    return redirect(url_for("social.profile"))
+    return _redirect_after_friend_form()
+
+
+@bp.post("/friends/favorite/<int:other_id>")
+@login_required
+def friends_toggle_favorite(other_id: int):
+    if other_id == current_user.id:
+        flash("Invalid.", "error")
+        return redirect(request.referrer or url_for("leaderboard.home"))
+    low, high = _ordered_pair(current_user.id, other_id)
+    if not Match.query.filter_by(user_a_id=low, user_b_id=high).first():
+        flash("You can only favorite gym friends.", "error")
+        return redirect(request.referrer or url_for("leaderboard.home"))
+    row = FriendFavorite.query.filter_by(
+        user_id=current_user.id,
+        friend_user_id=other_id,
+    ).first()
+    if row:
+        db.session.delete(row)
+        flash("Removed from best friends.", "info")
+    else:
+        db.session.add(FriendFavorite(user_id=current_user.id, friend_user_id=other_id))
+        flash("Pinned to best friends.", "success")
+    db.session.commit()
+    return redirect(request.referrer or url_for("leaderboard.home"))
 
 
 @bp.post("/friends/remove/<int:other_id>")
@@ -445,6 +500,144 @@ def match_thread(match_id: int):
         other=other,
         messages=messages,
     )
+
+
+def _gym_friend_users(user_id: int) -> list[User]:
+    matches = Match.query.filter(
+        (Match.user_a_id == user_id) | (Match.user_b_id == user_id)
+    ).all()
+    out: list[User] = []
+    for m in matches:
+        oid = m.user_b_id if m.user_a_id == user_id else m.user_a_id
+        u = db.session.get(User, oid)
+        if u:
+            out.append(u)
+    out.sort(key=lambda u: u.name.lower())
+    return out
+
+
+@bp.route("/groups")
+@login_required
+def groups_home():
+    member_rows = FriendGroupMember.query.filter_by(user_id=current_user.id).all()
+    gids = [r.group_id for r in member_rows]
+    groups: list[FriendGroup] = []
+    if gids:
+        groups = (
+            FriendGroup.query.filter(FriendGroup.id.in_(gids))
+            .order_by(FriendGroup.updated_at.desc())
+            .all()
+        )
+    previews: list[tuple[FriendGroup, list[User]]] = []
+    for g in groups:
+        mids = FriendGroupMember.query.filter_by(group_id=g.id).all()
+        uids = [x.user_id for x in mids]
+        members = User.query.filter(User.id.in_(uids)).all() if uids else []
+        by_id = {u.id: u for u in members}
+        previews.append((g, [by_id[i] for i in uids if i in by_id]))
+    return render_template("groups.html", group_previews=previews)
+
+
+@bp.route("/groups/new", methods=["GET", "POST"])
+@login_required
+def groups_new():
+    friends = _gym_friend_users(current_user.id)
+    ctx = {"friends": friends, "max_gc_members": MAX_GC_MEMBERS}
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()[:120] or "Group chat"
+        raw = request.form.getlist("member_id")
+        pick: list[int] = []
+        for x in raw:
+            try:
+                pick.append(int(x))
+            except (TypeError, ValueError):
+                pass
+        friend_set = _friend_ids(current_user.id)
+        pick = [i for i in pick if i in friend_set and i != current_user.id]
+        pick = list(dict.fromkeys(pick))
+        if not pick:
+            flash("Choose at least one gym friend for the group.", "error")
+            return render_template("group_new.html", **ctx)
+        if len(pick) + 1 > MAX_GC_MEMBERS:
+            flash(f"Groups can have at most {MAX_GC_MEMBERS} people including you.", "error")
+            return render_template("group_new.html", **ctx)
+        now = utcnow()
+        g = FriendGroup(name=name, creator_id=current_user.id, created_at=now, updated_at=now)
+        db.session.add(g)
+        db.session.flush()
+        for uid in (current_user.id, *pick):
+            db.session.add(FriendGroupMember(group_id=g.id, user_id=uid, joined_at=now))
+        db.session.commit()
+        flash("Group chat created.", "success")
+        return redirect(url_for("social.group_thread", group_id=g.id))
+    return render_template("group_new.html", **ctx)
+
+
+@bp.route("/groups/<int:group_id>", methods=["GET", "POST"])
+@login_required
+def group_thread(group_id: int):
+    g = db.session.get(FriendGroup, group_id)
+    if not g:
+        abort(404)
+    if not FriendGroupMember.query.filter_by(group_id=g.id, user_id=current_user.id).first():
+        abort(404)
+
+    if request.method == "POST":
+        content = (request.form.get("content") or "").strip()
+        if not content:
+            flash("Message cannot be empty.", "error")
+            return redirect(url_for("social.group_thread", group_id=group_id))
+        db.session.add(
+            GroupMessage(group_id=g.id, sender_id=current_user.id, content=content, sent_at=utcnow())
+        )
+        g.updated_at = utcnow()
+        db.session.commit()
+        return redirect(url_for("social.group_thread", group_id=group_id))
+
+    rows = FriendGroupMember.query.filter_by(group_id=g.id).all()
+    uids = [r.user_id for r in rows]
+    members = User.query.filter(User.id.in_(uids)).all() if uids else []
+    by_id = {u.id: u for u in members}
+    ordered_members = [by_id[i] for i in uids if i in by_id]
+    messages = (
+        GroupMessage.query.filter_by(group_id=g.id).order_by(GroupMessage.sent_at.asc()).all()
+    )
+    return render_template(
+        "group_thread.html",
+        group=g,
+        members=ordered_members,
+        members_by_id=by_id,
+        messages=messages,
+    )
+
+
+@bp.post("/groups/<int:group_id>/leave")
+@login_required
+def group_leave(group_id: int):
+    g = db.session.get(FriendGroup, group_id)
+    if not g:
+        abort(404)
+    row = FriendGroupMember.query.filter_by(group_id=group_id, user_id=current_user.id).first()
+    if not row:
+        abort(404)
+    was_creator = g.creator_id == current_user.id
+    db.session.delete(row)
+    db.session.flush()
+    remaining = FriendGroupMember.query.filter_by(group_id=group_id).count()
+    if remaining == 0:
+        GroupMessage.query.filter_by(group_id=group_id).delete(synchronize_session=False)
+        db.session.delete(g)
+    elif was_creator:
+        nxt = (
+            FriendGroupMember.query.filter_by(group_id=group_id)
+            .order_by(FriendGroupMember.joined_at.asc())
+            .first()
+        )
+        if nxt:
+            g.creator_id = nxt.user_id
+    db.session.commit()
+    flash("You left the group.", "info")
+    return redirect(url_for("social.groups_home"))
 
 
 @bp.route("/connect/<username>")

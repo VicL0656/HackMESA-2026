@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Leaderboard · GymLink{% endblock %}
+{% block title %}Home · GymLink{% endblock %}
 {% block content %}
 <div class="space-y-5" id="leaderboard-root" data-active-tab="{{ active_tab }}">
   <div class="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-4 shadow-xl">
@@ -32,56 +32,35 @@
   </div>
 
   <div class="grid grid-cols-3 gap-1 rounded-xl border border-slate-800 bg-slate-900/60 p-1 text-xs font-semibold sm:text-sm">
-    <button type="button" id="tab-streak" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'streak' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
-      Streak
+    <button type="button" id="tab-friends" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'friends' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
+      Friends
     </button>
-    <button type="button" id="tab-pr" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'pr' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
-      Lifting PR
+    <button type="button" id="tab-challenge" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'challenge' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
+      Daily challenge
     </button>
-    <button type="button" id="tab-outdoor" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'outdoor' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
-      Outdoor
+    <button type="button" id="tab-suggested" class="rounded-lg px-1 py-2 sm:px-2 {% if active_tab == 'suggested' %}bg-slate-800 text-white shadow-inner{% else %}text-slate-400 hover:text-white{% endif %}">
+      Suggested
     </button>
   </div>
 
-  <div id="panel-streak" class="space-y-3 {% if active_tab != 'streak' %}hidden{% endif %}">
-    <h2 class="text-sm font-semibold text-slate-300">Friends by current streak</h2>
-    {% if not friends %}
-    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-      No gym friends yet. <a href="{{ url_for('social.profile') }}#add-friend" class="font-semibold text-brand-500 hover:text-brand-400">Add a friend</a> or swipe.
+  <div id="panel-friends" class="space-y-4 {% if active_tab != 'friends' %}hidden{% endif %}">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-slate-300">All gym friends</h2>
+      <form method="get" action="{{ url_for('leaderboard.home') }}" class="flex flex-wrap items-center gap-2 text-xs">
+        <input type="hidden" name="tab" value="friends">
+        <label for="friend-sort" class="font-medium text-slate-500">Sort</label>
+        <select id="friend-sort" name="sort" onchange="this.form.submit()"
+          class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs font-semibold text-white">
+          <option value="streak" {% if friend_sort == 'streak' %}selected{% endif %}>By streak</option>
+          <option value="pr" {% if friend_sort == 'pr' %}selected{% endif %}>By PR</option>
+        </select>
+      </form>
     </div>
-    {% else %}
-    <ol class="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-      {% for u in streak_ranked %}
-      {% set s = streak_map.get(u.id) %}
-      <li class="flex items-center gap-3 px-3 py-3">
-        <img src="{{ u.photo_url }}" alt="" class="h-10 w-10 rounded-full border border-slate-800 bg-slate-800 object-cover">
-        <div class="min-w-0 flex-1">
-          <p class="truncate font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
-          <p class="truncate font-mono text-[11px] text-brand-500/80">@{{ u.username }}</p>
-          <p class="truncate text-xs text-slate-500">{{ u.workout_style or 'Athlete' }}{% if u.school %} · {{ u.school }}{% endif %}</p>
-        </div>
-        <div class="flex flex-col items-end gap-1 text-right">
-          <p class="text-lg font-bold text-white">{{ s.current_streak if s else 0 }} <span class="text-base">🔥</span></p>
-          <p class="text-[10px] text-slate-500">current</p>
-          <form method="post" action="{{ url_for('social.friends_remove', other_id=u.id) }}" onsubmit="return confirm('Remove this friend?');">
-            <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Unfriend</button>
-          </form>
-        </div>
-      </li>
-      {% endfor %}
-    </ol>
-    {% endif %}
-  </div>
 
-  <div id="panel-pr" class="space-y-3 {% if active_tab != 'pr' %}hidden{% endif %}">
-    {% if me_pr %}
-    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-      <p class="text-xs text-amber-100">Your {{ exercise }} PR: <span class="font-bold text-white">{{ "%.1f"|format(me_pr.best_weight_lbs) }} lb</span> × {{ me_pr.best_reps }}</p>
-      <button type="button" class="gymlink-share-pr shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-50 hover:bg-amber-500/30"
-        data-weight="{{ me_pr.best_weight_lbs }}" data-exercise="{{ exercise }}">Share</button>
-    </div>
-    {% endif %}
+    {% if friend_sort == 'pr' %}
     <form method="get" action="{{ url_for('leaderboard.home') }}" class="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="tab" value="friends">
+      <input type="hidden" name="sort" value="pr">
       <label for="exercise" class="text-xs font-medium text-slate-400">Lift</label>
       <select id="exercise" name="exercise" onchange="this.form.submit()"
         class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white">
@@ -89,79 +68,109 @@
         <option value="{{ ex }}" {% if ex == exercise %}selected{% endif %}>{{ ex }}</option>
         {% endfor %}
       </select>
-      <input type="hidden" name="tab" value="pr">
-      <input type="hidden" name="outdoor_kind" value="{{ outdoor_kind }}">
     </form>
-    <h2 class="text-sm font-semibold text-slate-300">Friends by best {{ exercise }} weight</h2>
+    {% if me_pr %}
+    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+      <p class="text-xs text-amber-100">Your {{ exercise }} PR: <span class="font-bold text-white">{{ "%.1f"|format(me_pr.best_weight_lbs) }} lb</span> × {{ me_pr.best_reps }}</p>
+      <button type="button" class="gymlink-share-pr shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-50 hover:bg-amber-500/30"
+        data-weight="{{ me_pr.best_weight_lbs }}" data-exercise="{{ exercise }}">Share</button>
+    </div>
+    {% endif %}
+    {% endif %}
+
     {% if not friends %}
     <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-      No gym friends yet. <a href="{{ url_for('social.profile') }}#add-friend" class="font-semibold text-brand-500 hover:text-brand-400">Add a friend</a> or match via swipes.
+      No gym friends yet. <a href="{{ url_for('social.profile') }}#add-friend" class="font-semibold text-brand-500 hover:text-brand-400">Add a friend</a> or swipe.
     </div>
     {% else %}
-    <ol class="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-      {% for u in pr_ranked %}
-      {% set pr = pr_map.get(u.id) %}
-      <li class="flex items-center gap-3 px-3 py-3">
-        <img src="{{ u.photo_url }}" alt="" class="h-10 w-10 rounded-full border border-slate-800 bg-slate-800 object-cover">
-        <div class="min-w-0 flex-1">
-          <p class="truncate font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
-          <p class="truncate font-mono text-[11px] text-brand-500/80">@{{ u.username }}</p>
-          <p class="truncate text-xs text-slate-500">{{ u.workout_style or 'Athlete' }}</p>
-        </div>
-        <div class="flex flex-col items-end gap-1 text-right">
-          {% if pr %}
-          <p class="text-lg font-bold text-white">{{ "%.1f"|format(pr.best_weight_lbs) }} <span class="text-xs font-medium text-slate-400">lb</span></p>
-          <p class="text-[10px] text-slate-500">{{ pr.best_reps }} reps</p>
-          {% else %}
-          <p class="text-sm text-slate-500">No PR yet</p>
-          {% endif %}
-          <form method="post" action="{{ url_for('social.friends_remove', other_id=u.id) }}" onsubmit="return confirm('Remove this friend?');">
-            <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Unfriend</button>
-          </form>
-        </div>
-      </li>
-      {% endfor %}
-    </ol>
+    <div class="space-y-4">
+      {% if fav_sorted %}
+      <div>
+        <h3 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-rose-300/90">Best friends</h3>
+        <ul class="space-y-2">
+          {% for u in fav_sorted %}
+            {% include "_friend_home_row.html" %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div>
+        {% if fav_sorted %}
+        <h3 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Friends</h3>
+        {% endif %}
+        <ul class="space-y-2">
+          {% for u in other_sorted %}
+            {% include "_friend_home_row.html" %}
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
     {% endif %}
   </div>
 
-  <div id="panel-outdoor" class="space-y-3 {% if active_tab != 'outdoor' %}hidden{% endif %}">
-    <form method="get" action="{{ url_for('leaderboard.home') }}" class="flex flex-wrap items-center gap-2">
-      <label for="outdoor_kind" class="text-xs font-medium text-slate-400">Activity</label>
-      <select id="outdoor_kind" name="outdoor_kind" onchange="this.form.submit()"
-        class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white">
-        {% for k in outdoor_kinds %}
-        <option value="{{ k }}" {% if k == outdoor_kind %}selected{% endif %}>{{ k|capitalize }}</option>
+  <div id="panel-challenge" class="space-y-4 {% if active_tab != 'challenge' %}hidden{% endif %}">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-brand-400/90">Today · {{ challenge_today.strftime('%b %d, %Y') }}</p>
+      <p class="mt-2 text-lg font-bold text-white">{{ challenge.title }}</p>
+      {% if challenge.body %}
+      <p class="mt-1 text-sm text-slate-400">{{ challenge.body }}</p>
+      {% endif %}
+      <p class="mt-3 text-sm {% if me_challenge_done %}text-emerald-400{% else %}text-amber-200/90{% endif %}">
+        {% if me_challenge_done %}You completed today’s challenge.{% else %}Log a workout or rest day today to complete it.{% endif %}
+      </p>
+    </div>
+    <div>
+      <h3 class="mb-2 text-sm font-semibold text-slate-300">Friends who completed today</h3>
+      {% if not challenge_friends_done %}
+      <p class="rounded-xl border border-dashed border-slate-800 bg-slate-900/30 px-3 py-4 text-center text-sm text-slate-500">No friends have checked this off yet.</p>
+      {% else %}
+      <ul class="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
+        {% for u in challenge_friends_done %}
+        <li class="flex items-center gap-3 px-3 py-2.5">
+          <img src="{{ u.photo_url }}" alt="" class="h-9 w-9 rounded-full border border-slate-800 object-cover">
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold text-white">{{ u.name }}</p>
+            <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ u.username }}</p>
+          </div>
+          <span class="text-lg" aria-hidden="true">✓</span>
+        </li>
         {% endfor %}
-      </select>
-      <input type="hidden" name="tab" value="outdoor">
-    </form>
-    <p class="text-xs text-slate-500">Ranked by best <span class="font-semibold text-slate-300">score</span> logged for this activity (higher is better). Post outdoor sessions from the Feed tab.</p>
-    <h2 class="text-sm font-semibold text-slate-300">Friends · {{ outdoor_kind|capitalize }}</h2>
-    {% if not friends %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="panel-suggested" class="space-y-3 {% if active_tab != 'suggested' %}hidden{% endif %}">
+    <p class="text-xs text-slate-500">People you are not gym friends with yet — mutual connections, same gym, or same school on your profile.</p>
+    {% if not suggestions %}
     <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-      No gym friends yet. Add friends to compare outdoor scores.
+      No suggestions right now. Add a home gym or school on your profile, or grow your friend network.
     </div>
     {% else %}
-    <ol class="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-      {% for u in outdoor_ranked %}
-      {% set sc = outdoor_map.get(u.id, 0) %}
-      <li class="flex items-center gap-3 px-3 py-3">
-        <img src="{{ u.photo_url }}" alt="" class="h-10 w-10 rounded-full border border-slate-800 bg-slate-800 object-cover">
-        <div class="min-w-0 flex-1">
-          <p class="truncate font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
-          <p class="truncate font-mono text-[11px] text-brand-500/80">@{{ u.username }}</p>
-        </div>
-        <div class="flex flex-col items-end gap-1 text-right">
-          <p class="text-lg font-bold text-sky-300">{{ "%.2f"|format(sc) }}</p>
-          <p class="text-[10px] text-slate-500">best score</p>
-          <form method="post" action="{{ url_for('social.friends_remove', other_id=u.id) }}" onsubmit="return confirm('Remove this friend?');">
-            <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Unfriend</button>
-          </form>
+    <ul class="space-y-2">
+      {% for row in suggestions %}
+      {% set u = row.user %}
+      <li class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="flex gap-3">
+          <img src="{{ u.photo_url }}" alt="" class="h-11 w-11 shrink-0 rounded-full border border-slate-800 object-cover">
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
+            <p class="font-mono text-[11px] text-brand-500/80">@{{ u.username }}</p>
+            <div class="mt-1 flex flex-wrap gap-1">
+              {% for t in row.tags %}
+              <span class="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-400">{{ t }}</span>
+              {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('social.friends_add') }}" class="mt-2">
+              <input type="hidden" name="friend_handle" value="@{{ u.username }}">
+              <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+              <button type="submit" class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-500">Add friend</button>
+            </form>
+          </div>
         </div>
       </li>
       {% endfor %}
-    </ol>
+    </ul>
     {% endif %}
   </div>
 

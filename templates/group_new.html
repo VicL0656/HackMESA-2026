@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}New group chat · GymLink{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <a href="{{ url_for('social.groups_home') }}" class="text-xs font-semibold text-slate-400 hover:text-white">← Group chats</a>
+  <div>
+    <h1 class="text-xl font-bold text-white">New GC</h1>
+    <p class="mt-1 text-sm text-slate-400">Name the chat and choose gym friends to include (you are added automatically).</p>
+  </div>
+
+  {% if not friends %}
+  <div class="rounded-xl border border-amber-800/50 bg-amber-950/20 p-4 text-sm text-amber-100/90">
+    Add gym friends from your profile first, then you can start a group chat.
+  </div>
+  <p><a href="{{ url_for('social.profile') }}" class="text-sm font-semibold text-brand-500 hover:text-brand-400">Go to profile</a></p>
+  {% else %}
+  <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="name">Group name</label>
+      <input id="name" name="name" maxlength="120" placeholder="Leg day crew, Morning cardio, …"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
+    </div>
+    <div>
+      <span class="block text-xs font-medium text-slate-400">Members</span>
+      <p class="mt-1 text-[10px] text-slate-500">Pick at least one. Max {{ max_gc_members }} people including you.</p>
+      <ul class="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/50 p-2">
+        {% for u in friends %}
+        <li>
+          <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2 py-2 hover:border-slate-700 hover:bg-slate-900/80">
+            <input type="checkbox" name="member_id" value="{{ u.id }}" class="rounded border-slate-600 text-brand-500">
+            <img src="{{ (u.photo_url or '')|media_url }}" alt="" class="h-9 w-9 shrink-0 rounded-full border border-slate-800 object-cover">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold text-white">{{ u.name }}</p>
+              <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ u.username }}</p>
+            </div>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">Create group chat</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

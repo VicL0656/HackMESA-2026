@@ -86,9 +86,15 @@ def create_app():
 
     from models import (  # noqa: F401
         CheckIn,
+        DailyChallenge,
+        DailyChallengeComplete,
+        FriendFavorite,
+        FriendGroup,
+        FriendGroupMember,
         FriendRequest,
         Goal,
         Gym,
+        GroupMessage,
         Match,
         Message,
         Notification,
@@ -294,6 +300,9 @@ def _sqlite_add_missing_columns() -> None:
     add_col("users", "workout_days", "VARCHAR(64)")
     add_col("users", "goal_weight_lbs", "FLOAT")
     add_col("workouts", "is_rest_day", "INTEGER DEFAULT 0")
+    add_col("users", "public_show_streak_stats", "INTEGER DEFAULT 1")
+    add_col("users", "public_show_pr_highlights", "INTEGER DEFAULT 1")
+    add_col("users", "public_show_profile_fields", "INTEGER DEFAULT 1")
 
 
 app = create_app()

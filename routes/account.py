@@ -103,7 +103,19 @@ def settings():
             flash("Password updated.", "success")
             return redirect(url_for("account.settings"))
 
+        if part == "privacy":
+            current_user.public_show_streak_stats = bool(request.form.get("public_show_streak_stats"))
+            current_user.public_show_pr_highlights = bool(request.form.get("public_show_pr_highlights"))
+            current_user.public_show_profile_fields = bool(request.form.get("public_show_profile_fields"))
+            db.session.commit()
+            flash("Privacy settings saved.", "success")
+            return redirect(url_for("account.settings") + "#privacy")
+
         # training (default)
+        if part != "training":
+            flash("Could not save that section.", "error")
+            return redirect(url_for("account.settings"))
+
         current_user.goal_weight_lbs = None
         gw = (request.form.get("goal_weight_lbs") or "").strip()
         if gw:

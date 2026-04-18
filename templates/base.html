@@ -64,13 +64,14 @@
   </div>
 
   {% if current_user.is_authenticated %}
+  {% set nav_inbox = request.endpoint in ('inbox.inbox_home', 'social.match_thread', 'social.groups_home', 'social.groups_new', 'social.group_thread') %}
   <nav class="fixed bottom-0 inset-x-0 z-40 border-t border-slate-800 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
     <div class="mx-auto flex max-w-lg items-stretch justify-between gap-0.5 px-1 py-2 text-[9px] font-semibold text-slate-500 sm:text-[10px]">
       <a href="{{ url_for('leaderboard.home') }}" class="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-900 {% if request.endpoint == 'leaderboard.home' %}text-brand-500{% endif %}">
         <span class="text-base leading-none sm:text-lg">🏠</span>
         <span class="truncate">Home</span>
       </a>
-      <a href="{{ url_for('inbox.inbox_home') }}" class="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-900 {% if request.endpoint == 'inbox.inbox_home' %}text-brand-500{% endif %}">
+      <a href="{{ url_for('inbox.inbox_home') }}" class="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-900 {% if nav_inbox %}text-brand-500{% endif %}">
         {% if inbox_unread_count and inbox_unread_count > 0 %}
         <span class="absolute right-1 top-0 min-w-[1rem] rounded-full bg-rose-500 px-1 text-center text-[8px] font-bold text-white">{% if inbox_unread_count > 9 %}9+{% else %}{{ inbox_unread_count }}{% endif %}</span>
         {% endif %}

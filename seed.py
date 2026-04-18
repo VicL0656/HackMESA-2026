@@ -9,6 +9,12 @@ from app import app
 from extensions import bcrypt, db
 from models import FriendRequest  # noqa: F401 — registers friend_requests table for drop_all/create_all
 from models import (
+    DailyChallenge,
+    DailyChallengeComplete,
+    FriendFavorite,
+    FriendGroup,
+    FriendGroupMember,
+    GroupMessage,
     Gym,
     Match,
     Message,

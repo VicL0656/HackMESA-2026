@@ -29,6 +29,10 @@ class User(UserMixin, db.Model):
     home_gym_id = db.Column(db.Integer, db.ForeignKey("gyms.id"), nullable=True, index=True)
     workout_days = db.Column(db.String(64), nullable=True)  # JSON list of weekday ints 0=Mon..6=Sun
     goal_weight_lbs = db.Column(db.Float, nullable=True)
+    # What gym friends may see when they expand your row on Home (their view).
+    public_show_streak_stats = db.Column(db.Boolean, nullable=False, default=True)
+    public_show_pr_highlights = db.Column(db.Boolean, nullable=False, default=True)
+    public_show_profile_fields = db.Column(db.Boolean, nullable=False, default=True)
 
     home_gym = db.relationship("Gym", foreign_keys=[home_gym_id])
 
@@ -280,3 +284,79 @@ class PasswordResetToken(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
+
+
+class FriendGroup(db.Model):
+    """Multi-person chat among gym friends (GC). DMs stay on Match + Message."""
+
+    __tablename__ = "friend_groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, default="Group chat")
+    creator_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    creator = db.relationship("User", foreign_keys=[creator_id])
+
+
+class FriendGroupMember(db.Model):
+    __tablename__ = "friend_group_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("friend_groups.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    joined_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    group = db.relationship("FriendGroup", backref=db.backref("member_rows", lazy="dynamic"))
+    user = db.relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (UniqueConstraint("group_id", "user_id", name="uq_friend_group_member"),)
+
+
+class GroupMessage(db.Model):
+    __tablename__ = "group_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("friend_groups.id"), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    content = db.Column(db.Text, nullable=False)
+    sent_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    group = db.relationship("FriendGroup", backref=db.backref("group_messages", lazy="dynamic"))
+    sender = db.relationship("User", foreign_keys=[sender_id])
+
+
+class FriendFavorite(db.Model):
+    """Current user pinned a gym friend to the top of Home."""
+
+    __tablename__ = "friend_favorites"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    friend_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "friend_user_id", name="uq_friend_favorite_pair"),)
+
+
+class DailyChallenge(db.Model):
+    __tablename__ = "daily_challenges"
+
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_date = db.Column(db.Date, unique=True, nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=True)
+
+
+class DailyChallengeComplete(db.Model):
+    __tablename__ = "daily_challenge_completes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    challenge_date = db.Column(db.Date, nullable=False, index=True)
+    completed_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "challenge_date", name="uq_daily_challenge_user_day"),
+    )

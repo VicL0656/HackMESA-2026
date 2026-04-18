@@ -1,18 +1,20 @@
 /* global io */
 
 function initLeaderboardTabs() {
-  const tabStreak = document.getElementById("tab-streak");
-  const tabPr = document.getElementById("tab-pr");
-  const tabOutdoor = document.getElementById("tab-outdoor");
-  const panelStreak = document.getElementById("panel-streak");
-  const panelPr = document.getElementById("panel-pr");
-  const panelOutdoor = document.getElementById("panel-outdoor");
-  if (!tabStreak || !tabPr || !tabOutdoor || !panelStreak || !panelPr || !panelOutdoor) return;
+  const tabFriends = document.getElementById("tab-friends");
+  const tabChallenge = document.getElementById("tab-challenge");
+  const tabSuggested = document.getElementById("tab-suggested");
+  const panelFriends = document.getElementById("panel-friends");
+  const panelChallenge = document.getElementById("panel-challenge");
+  const panelSuggested = document.getElementById("panel-suggested");
+  if (!tabFriends || !tabChallenge || !tabSuggested || !panelFriends || !panelChallenge || !panelSuggested) {
+    return;
+  }
 
   const tabs = [
-    { id: "streak", tab: tabStreak, panel: panelStreak },
-    { id: "pr", tab: tabPr, panel: panelPr },
-    { id: "outdoor", tab: tabOutdoor, panel: panelOutdoor },
+    { id: "friends", tab: tabFriends, panel: panelFriends },
+    { id: "challenge", tab: tabChallenge, panel: panelChallenge },
+    { id: "suggested", tab: tabSuggested, panel: panelSuggested },
   ];
 
   const activate = (which) => {
@@ -27,12 +29,12 @@ function initLeaderboardTabs() {
   };
 
   const root = document.getElementById("leaderboard-root");
-  const initial = (root && root.dataset.activeTab) || "streak";
-  activate(["streak", "pr", "outdoor"].includes(initial) ? initial : "streak");
+  const initial = (root && root.dataset.activeTab) || "friends";
+  activate(["friends", "challenge", "suggested"].includes(initial) ? initial : "friends");
 
-  tabStreak.addEventListener("click", () => activate("streak"));
-  tabPr.addEventListener("click", () => activate("pr"));
-  tabOutdoor.addEventListener("click", () => activate("outdoor"));
+  tabFriends.addEventListener("click", () => activate("friends"));
+  tabChallenge.addEventListener("click", () => activate("challenge"));
+  tabSuggested.addEventListener("click", () => activate("suggested"));
 }
 
 function initLeaderboardSocket() {

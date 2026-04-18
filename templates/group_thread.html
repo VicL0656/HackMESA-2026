@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} · GC · GymLink{% endblock %}
+{% block content %}
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <a href="{{ url_for('social.groups_home') }}" class="text-xs font-semibold text-slate-400 hover:text-white">← Groups</a>
+    <form method="post" action="{{ url_for('social.group_leave', group_id=group.id) }}" onsubmit="return confirm('Leave this group chat?');">
+      <button type="submit" class="text-xs font-semibold text-rose-400 hover:text-rose-300">Leave</button>
+    </form>
+  </div>
+
+  <div>
+    <h1 class="text-lg font-bold text-white">{{ group.name }}</h1>
+    <p class="mt-1 text-[11px] text-slate-500">
+      {% for u in members %}
+      <span class="text-slate-400">@{{ u.username }}</span>{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </p>
+  </div>
+
+  <div class="max-h-[50vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
+    {% for msg in messages %}
+    {% set snd = members_by_id.get(msg.sender_id) %}
+    <div class="flex {% if msg.sender_id == current_user.id %}justify-end{% else %}justify-start{% endif %}">
+      <div class="max-w-[85%] rounded-2xl px-3 py-2 text-sm {% if msg.sender_id == current_user.id %}bg-brand-600 text-white{% else %}bg-slate-800 text-slate-100{% endif %}">
+        {% if msg.sender_id != current_user.id and snd %}
+        <p class="mb-1 text-[10px] font-semibold text-brand-400/90">@{{ snd.username }}</p>
+        {% endif %}
+        <p>{{ msg.content }}</p>
+        <p class="mt-1 text-[10px] opacity-70">{{ msg.sent_at.strftime('%b %d · %I:%M %p') }}</p>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-center text-sm text-slate-500">First message sets the tone — say hi to the crew.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="flex gap-2">
+    <input name="content" maxlength="2000" required placeholder="Message the group"
+      class="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+    <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send</button>
+  </form>
+</div>
+{% endblock %}

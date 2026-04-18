@@ -12,6 +12,7 @@
     <a href="#password" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Password</a>
     <a href="#home-gym" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Home gym</a>
     <a href="#training" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Training</a>
+    <a href="#privacy" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Privacy</a>
     {% if show_delete_account %}
     <a href="#delete-account" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-rose-300">Account</a>
     {% endif %}
@@ -129,6 +130,39 @@
           class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
       </div>
       <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">Save training</button>
+    </form>
+  </section>
+
+  <section id="privacy" class="scroll-mt-4 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <h2 class="text-sm font-semibold text-white">What friends see on Home</h2>
+    <p class="text-xs text-slate-500">When a gym friend expands your row on the Home leaderboard, these toggles control which sections appear. Turning everything off still shows your name and handle in the list.</p>
+    <form method="post" class="space-y-3">
+      <input type="hidden" name="form_part" value="privacy">
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <input type="checkbox" name="public_show_profile_fields" value="1" class="mt-1 rounded border-slate-600 text-brand-500"
+          {% if current_user.public_show_profile_fields %}checked{% endif %}>
+        <span>
+          <span class="text-sm font-medium text-slate-200">Profile snippet</span>
+          <span class="mt-0.5 block text-[11px] text-slate-500">Style, goals, school, home gym name.</span>
+        </span>
+      </label>
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <input type="checkbox" name="public_show_streak_stats" value="1" class="mt-1 rounded border-slate-600 text-brand-500"
+          {% if current_user.public_show_streak_stats %}checked{% endif %}>
+        <span>
+          <span class="text-sm font-medium text-slate-200">Streak stats</span>
+          <span class="mt-0.5 block text-[11px] text-slate-500">Current and best streak in the expanded panel.</span>
+        </span>
+      </label>
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <input type="checkbox" name="public_show_pr_highlights" value="1" class="mt-1 rounded border-slate-600 text-brand-500"
+          {% if current_user.public_show_pr_highlights %}checked{% endif %}>
+        <span>
+          <span class="text-sm font-medium text-slate-200">PR highlight</span>
+          <span class="mt-0.5 block text-[11px] text-slate-500">Uses the lift your friend has selected when sorting by PR on Home.</span>
+        </span>
+      </label>
+      <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">Save privacy</button>
     </form>
   </section>
 

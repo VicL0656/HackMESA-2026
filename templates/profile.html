@@ -26,6 +26,7 @@
       <a href="{{ url_for('account.settings') }}" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Settings</a>
       <a href="{{ url_for('inbox.inbox_home') }}" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Inbox{% if inbox_unread_count and inbox_unread_count > 0 %} ({{ inbox_unread_count }}){% endif %}</a>
       <a href="{{ url_for('weights.weight_log') }}" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Body weight log</a>
+      <a href="{{ url_for('inbox.inbox_home') }}#inbox-chats" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Chats (inbox)</a>
     </div>
   </section>
 
@@ -341,7 +342,12 @@
   </div>
 
   <div>
-    <h2 class="mb-2 text-sm font-semibold text-slate-200">Gym friends</h2>
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-slate-200">Gym friends</h2>
+      {% if match_rows %}
+      <a href="{{ url_for('social.groups_new') }}" class="text-[10px] font-semibold text-brand-500 hover:text-brand-400">New group chat</a>
+      {% endif %}
+    </div>
     {% if not match_rows %}
     <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
       No gym friends yet. Add someone with their @handle above, or use <a href="{{ url_for('social.swipe') }}" class="font-semibold text-brand-500 hover:text-brand-400">Find lifters</a> to swipe.
