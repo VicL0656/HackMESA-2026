@@ -50,6 +50,10 @@ def parse_structured(raw: str | None) -> list[dict[str, Any]] | None:
 
 def form_context(raw: str | None) -> dict[str, Any]:
     """Template + form: days for Mon–Sun, optional legacy_plain if old text stored."""
+    from split_presets import parse_v2
+
+    if parse_v2(raw) is not None:
+        return {"days": default_days(), "legacy_plain": None}
     parsed = parse_structured(raw)
     if parsed is not None:
         return {"days": parsed, "legacy_plain": None}
@@ -61,6 +65,10 @@ def form_context(raw: str | None) -> dict[str, Any]:
 
 def card_lines(raw: str | None) -> tuple[list[str], str | None]:
     """(lines to show for structured week, legacy paragraph or None)."""
+    from split_presets import parse_v2, summary_lines_v2
+
+    if parse_v2(raw) is not None:
+        return summary_lines_v2(raw), None
     ctx = form_context(raw)
     legacy = ctx["legacy_plain"]
     if legacy:

@@ -42,7 +42,7 @@
     <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm">
       <div>
         <p class="font-semibold text-white">{{ "%.1f"|format(row.weight_lbs) }} lb</p>
-        <p class="text-[10px] text-slate-500">{{ row.logged_at.strftime('%b %d, %Y') }} · {{ row.visibility }}</p>
+        <p class="text-[10px] text-slate-500">{{ row.logged_at|pacific('%b %d, %Y') }} · {{ row.visibility }}</p>
       </div>
       <form method="post" action="{{ url_for('weights.weight_delete', log_id=row.id) }}" onsubmit="return confirm('Delete this entry?');">
         <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>

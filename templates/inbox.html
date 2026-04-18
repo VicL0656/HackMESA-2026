@@ -19,7 +19,7 @@
       </div>
       <div class="divide-y divide-slate-800">
         {% if not dm_rows %}
-        <p class="px-4 py-5 text-center text-sm text-slate-500">No conversations yet. Add friends from Home or Profile.</p>
+        <p class="px-4 py-5 text-center text-sm text-slate-500">No conversations yet. <a href="{{ url_for('social.add_friend') }}" class="font-semibold text-brand-500 hover:text-brand-400">Add friends</a> from Home or the Add friend page.</p>
         {% else %}
         {% for m, other in dm_rows %}
         <a href="{{ url_for('social.match_thread', match_id=m.id) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-950/60">
@@ -72,7 +72,7 @@
           <div class="min-w-0 flex-1">
             <p class="font-semibold text-white">{{ n.title }}</p>
             {% if n.body %}<p class="mt-1 text-sm text-slate-400">{{ n.body }}</p>{% endif %}
-            <p class="mt-1 text-[10px] text-slate-600">{{ n.created_at.strftime('%b %d · %I:%M %p') }}</p>
+            <p class="mt-1 text-[10px] text-slate-600">{{ n.created_at|pacific }}</p>
             <div class="mt-2 flex flex-wrap gap-2">
               {% if n.action_url %}
               <a href="{{ n.action_url }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Open</a>

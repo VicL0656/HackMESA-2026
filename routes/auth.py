@@ -135,7 +135,7 @@ def forgot_password():
     if request.method == "POST":
         from username_utils import resolve_user_by_email_or_username
 
-        raw = (request.form.get("email") or "").strip()
+        raw = (request.form.get("identifier") or request.form.get("email") or "").strip()
         user = resolve_user_by_email_or_username(raw)
         if not user:
             flash("If that email is on file, you will receive reset instructions shortly.", "info")

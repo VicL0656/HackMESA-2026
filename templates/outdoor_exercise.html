@@ -31,7 +31,7 @@
       <img src="{{ (r.photo_path or '')|media_url }}" alt="" class="aspect-[16/9] w-full object-cover" loading="lazy">
       {% endif %}
       <div class="p-4">
-        <p class="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">{{ r.posted_at.strftime('%b %d, %Y · %I:%M %p') }}</p>
+        <p class="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">{{ r.posted_at|pacific('%b %d, %Y · %I:%M %p') }}</p>
         <h2 class="mt-1 text-lg font-bold text-white">{{ r.title }}</h2>
         {% if r.notes %}
         <p class="mt-2 text-sm text-slate-300">{{ r.notes }}</p>

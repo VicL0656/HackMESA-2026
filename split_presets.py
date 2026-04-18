@@ -8,6 +8,21 @@ from typing import Any
 VERSION = 2
 PRESET_KEYS = ("upper_lower", "ppl", "arnold", "bro_5day", "full_body_3")
 
+PRESET_LABELS: dict[str, str] = {
+    "upper_lower": "Upper / Lower",
+    "ppl": "Push / Pull / Legs",
+    "arnold": "Arnold split",
+    "bro_5day": "Bro split (5 day)",
+    "full_body_3": "Full body (3× / week)",
+    "custom": "Custom template",
+}
+
+
+def preset_display_name(key: str | None) -> str:
+    if not key:
+        return "Split template"
+    return PRESET_LABELS.get(str(key).strip().lower(), str(key).replace("_", " ").title())
+
 
 def _day(rest: bool = False, exercises: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     return {"rest": bool(rest), "exercises": exercises or []}

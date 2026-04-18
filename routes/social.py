@@ -37,7 +37,7 @@ bp = Blueprint("social", __name__)
 MAX_GC_MEMBERS = 16
 
 
-def _redirect_after_friend_form(default_endpoint: str = "social.profile"):
+def _redirect_after_friend_form(default_endpoint: str = "social.add_friend"):
     """Optional same-origin path from POST `redirect_to` (e.g. return to Home)."""
     n = (request.form.get("redirect_to") or "").strip()
     if (
@@ -329,6 +329,35 @@ def _mark_match_read(m: Match, uid: int) -> None:
         m.user_b_last_read_at = t
 
 
+@bp.get("/matches/<int:match_id>/poll")
+@login_required
+def match_messages_poll(match_id: int):
+    m = db.session.get(Match, match_id)
+    if not m or current_user.id not in (m.user_a_id, m.user_b_id):
+        abort(404)
+    after = request.args.get("after", type=int) or 0
+    rows = (
+        Message.query.filter(Message.match_id == m.id, Message.id > after)
+        .order_by(Message.id.asc())
+        .limit(50)
+        .all()
+    )
+    return jsonify(
+        {
+            "ok": True,
+            "messages": [
+                {
+                    "id": msg.id,
+                    "sender_id": msg.sender_id,
+                    "content": msg.content,
+                    "sent_at": msg.sent_at.isoformat(),
+                }
+                for msg in rows
+            ],
+        }
+    )
+
+
 @bp.route("/matches/<int:match_id>", methods=["GET", "POST"])
 @login_required
 def match_thread(match_id: int):
@@ -451,6 +480,40 @@ def groups_new():
         flash("Group chat created.", "success")
         return redirect(url_for("social.group_thread", group_id=g.id))
     return render_template("group_new.html", **ctx)
+
+
+@bp.get("/groups/<int:group_id>/poll")
+@login_required
+def group_messages_poll(group_id: int):
+    g = db.session.get(FriendGroup, group_id)
+    if not g:
+        abort(404)
+    if not FriendGroupMember.query.filter_by(group_id=g.id, user_id=current_user.id).first():
+        abort(404)
+    after = request.args.get("after", type=int) or 0
+    rows = (
+        GroupMessage.query.filter(GroupMessage.group_id == g.id, GroupMessage.id > after)
+        .order_by(GroupMessage.id.asc())
+        .limit(50)
+        .all()
+    )
+    uids = {m.sender_id for m in rows}
+    by_id = {u.id: u for u in User.query.filter(User.id.in_(uids)).all()} if uids else {}
+    return jsonify(
+        {
+            "ok": True,
+            "messages": [
+                {
+                    "id": msg.id,
+                    "sender_id": msg.sender_id,
+                    "sender_username": (by_id.get(msg.sender_id).username if by_id.get(msg.sender_id) else ""),
+                    "content": msg.content,
+                    "sent_at": msg.sent_at.isoformat(),
+                }
+                for msg in rows
+            ],
+        }
+    )
 
 
 @bp.route("/groups/<int:group_id>", methods=["GET", "POST"])
@@ -616,6 +679,21 @@ def group_leave(group_id: int):
     db.session.commit()
     flash("You left the group.", "info")
     return redirect(url_for("social.groups_home"))
+
+
+@bp.route("/add-friend")
+@login_required
+def add_friend():
+    connect_username = assign_username_if_missing(current_user)
+    friend_connect_url = url_for(
+        "social.connect_friend", username=connect_username, _external=True
+    )
+    qr_data = quote(friend_connect_url, safe="")
+    return render_template(
+        "add_friend.html",
+        friend_connect_url=friend_connect_url,
+        qr_data=qr_data,
+    )
 
 
 @bp.route("/connect/<username>")
@@ -807,12 +885,6 @@ def profile():
     for fr in outgoing:
         outgoing_rows.append((fr, db.session.get(User, fr.to_user_id)))
 
-    connect_username = assign_username_if_missing(current_user)
-    friend_connect_url = url_for(
-        "social.connect_friend", username=connect_username, _external=True
-    )
-    qr_data = quote(friend_connect_url, safe="")
-
     goals = (
         Goal.query.filter_by(user_id=current_user.id)
         .order_by(Goal.completed.asc(), Goal.id.desc())
@@ -833,7 +905,7 @@ def profile():
         .all()
     )
 
-    from split_presets import parse_v2, summary_lines_v2
+    from split_presets import parse_v2, preset_display_name, summary_lines_v2
     from workout_split_util import card_lines, form_context
 
     _fc = form_context(current_user.workout_split)
@@ -842,6 +914,7 @@ def profile():
     split_is_v2 = _pv is not None
     split_v2_lines = summary_lines_v2(current_user.workout_split) if split_is_v2 else []
     split_preset_key = str(_pv.get("preset") or "") if _pv else ""
+    split_preset_label = preset_display_name(split_preset_key) if split_is_v2 else ""
 
     wl_rows = (
         WeightLog.query.filter_by(user_id=current_user.id)
@@ -866,8 +939,6 @@ def profile():
         match_rows=match_rows,
         incoming_rows=incoming_rows,
         outgoing_rows=outgoing_rows,
-        friend_connect_url=friend_connect_url,
-        qr_data=qr_data,
         goals=goals,
         latest_weight=latest_w,
         suggested_friends=suggested,
@@ -878,6 +949,7 @@ def profile():
         split_is_v2=split_is_v2,
         split_v2_lines=split_v2_lines,
         split_preset_key=split_preset_key,
+        split_preset_label=split_preset_label,
         weight_chart_points=weight_chart_points,
         prog_exercise=prog_ex,
         prog_points=prog_points,

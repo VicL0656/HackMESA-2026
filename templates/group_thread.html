@@ -1,77 +1,93 @@
 {% extends "base.html" %}
 {% block title %}{{ group.name }} · GC · GymLink{% endblock %}
+{% block head %}
+<style>
+  .gymlink-msg-highlight {
+    transition: background-color 0.9s ease-out, box-shadow 0.9s ease-out;
+    background-color: rgba(250, 204, 21, 0.28) !important;
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35);
+  }
+</style>
+{% endblock %}
 {% block content %}
-<div id="gc-chat-root" class="space-y-4" data-group-id="{{ group.id }}" data-me-id="{{ current_user.id }}">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <a href="{{ url_for('inbox.inbox_home') }}#inbox-chats" class="text-xs font-semibold text-slate-400 hover:text-white">← Inbox</a>
-    <form method="post" action="{{ url_for('social.group_leave', group_id=group.id) }}" onsubmit="return confirm('Leave this group chat?');">
-      <button type="submit" class="text-xs font-semibold text-rose-400 hover:text-rose-300">Leave</button>
-    </form>
-  </div>
-
-  <div>
-    <h1 class="text-lg font-bold text-white">{{ group.name }}</h1>
-    <p class="mt-1 text-[11px] text-slate-500">
-      {% for u in members %}
-      <span class="text-slate-400">@{{ u.username }}</span>{% if not loop.last %} · {% endif %}
-      {% endfor %}
-    </p>
-  </div>
-
-  <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-400">
-    <p class="font-semibold text-slate-300">Group settings</p>
-    <form method="post" class="mt-2 flex flex-wrap items-end gap-2">
-      <input type="hidden" name="form_part" value="rename">
-      <input name="name" value="{{ group.name }}" maxlength="120" placeholder="Group name"
-        class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-      <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Rename</button>
-    </form>
-    {% if addable_friends %}
-    <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
-      <input type="hidden" name="form_part" value="add_members">
-      <p class="text-[10px] text-slate-500">Add gym friends</p>
-      <div class="flex max-h-28 flex-col gap-1 overflow-y-auto">
-        {% for u in addable_friends %}
-        <label class="flex cursor-pointer items-center gap-2 text-slate-200">
-          <input type="checkbox" name="member_id" value="{{ u.id }}" class="rounded border-slate-600 text-brand-500">
-          <span>@{{ u.username }}</span>
-        </label>
-        {% endfor %}
+<div id="gc-chat-root" class="space-y-4" data-group-id="{{ group.id }}" data-me-id="{{ current_user.id }}"
+  data-poll-url="{{ url_for('social.group_messages_poll', group_id=group.id) }}">
+  <div class="relative border-b border-slate-800 pb-4">
+    <div class="grid grid-cols-[minmax(0,2.5rem)_1fr_minmax(0,2.5rem)] items-center gap-2">
+      <a href="{{ url_for('inbox.inbox_home') }}#inbox-chats" class="text-xs font-semibold text-slate-400 hover:text-white" aria-label="Back to inbox">←</a>
+      <div class="min-w-0 text-center">
+        <h1 class="truncate text-xl font-black tracking-tight text-white sm:text-2xl">{{ group.name }}</h1>
       </div>
-      <button type="submit" class="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">Add selected</button>
-    </form>
-    {% endif %}
-    <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
-      <input type="hidden" name="form_part" value="challenge">
-      <p class="text-[10px] text-slate-500">Group challenge (visible to members)</p>
-      <input name="challenge_title" value="{{ group.challenge_title or '' }}" maxlength="200" placeholder="e.g. Everyone trains legs Friday"
-        class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-      <input type="date" name="challenge_day" value="{{ group.challenge_day.isoformat() if group.challenge_day else '' }}"
-        class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-      <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Save challenge</button>
-    </form>
-    {% if group.challenge_title and group.challenge_day %}
-    <div class="mt-2 border-t border-slate-800 pt-2">
-      <p class="text-slate-200">{{ group.challenge_title }}</p>
-      <p class="text-[10px] text-slate-500">Day: {{ group.challenge_day.strftime('%b %d, %Y') }}</p>
-      {% if current_user.id in challenge_done_ids %}
-      <p class="mt-1 text-emerald-400">You marked this complete.</p>
-      {% else %}
-      <form method="post" class="mt-1">
-        <input type="hidden" name="form_part" value="challenge_done">
-        <button type="submit" class="rounded-lg border border-brand-600 px-3 py-1 text-[11px] font-semibold text-brand-300 hover:bg-brand-950">Mark my day done</button>
-      </form>
-      {% endif %}
-      <p class="mt-1 text-[10px] text-slate-600">Completed: {{ challenge_done_ids|length }} / {{ members|length }}</p>
+      <div class="relative flex justify-end">
+        <button type="button" id="gc-gear-btn" class="rounded-lg p-2 text-lg leading-none text-slate-300 hover:bg-slate-800 hover:text-white" aria-expanded="false" aria-controls="gc-settings-menu" aria-label="Group settings">⚙</button>
+        <div id="gc-settings-menu" class="absolute right-0 top-full z-50 mt-1 hidden w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-700 bg-slate-950 p-3 text-xs text-slate-300 shadow-2xl">
+          <p class="border-b border-slate-800 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Members</p>
+          <ul class="mt-2 max-h-32 space-y-1 overflow-y-auto text-slate-200">
+            {% for u in members %}
+            <li class="truncate font-mono text-[11px] text-brand-500/90">@{{ u.username }}</li>
+            {% endfor %}
+          </ul>
+          <div class="mt-3 border-t border-slate-800 pt-3">
+            <p class="text-[10px] font-semibold text-slate-500">Rename group</p>
+            <form method="post" class="mt-2 flex flex-col gap-2">
+              <input type="hidden" name="form_part" value="rename">
+              <input name="name" value="{{ group.name }}" maxlength="120" placeholder="Group name"
+                class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white">
+              <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Save name</button>
+            </form>
+          </div>
+          {% if addable_friends %}
+          <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
+            <input type="hidden" name="form_part" value="add_members">
+            <p class="text-[10px] font-semibold text-slate-500">Add gym friends</p>
+            <div class="flex max-h-28 flex-col gap-1 overflow-y-auto">
+              {% for u in addable_friends %}
+              <label class="flex cursor-pointer items-center gap-2 text-slate-200">
+                <input type="checkbox" name="member_id" value="{{ u.id }}" class="rounded border-slate-600 text-brand-500">
+                <span>@{{ u.username }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <button type="submit" class="w-full rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">Add selected</button>
+          </form>
+          {% endif %}
+          <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
+            <input type="hidden" name="form_part" value="challenge">
+            <p class="text-[10px] font-semibold text-slate-500">Group challenge</p>
+            <input name="challenge_title" value="{{ group.challenge_title or '' }}" maxlength="200" placeholder="e.g. Everyone trains legs Friday"
+              class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white">
+            <input type="date" name="challenge_day" value="{{ group.challenge_day.isoformat() if group.challenge_day else '' }}"
+              class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white">
+            <button type="submit" class="w-full rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Save challenge</button>
+          </form>
+          {% if group.challenge_title and group.challenge_day %}
+          <div class="mt-3 border-t border-slate-800 pt-2">
+            <p class="text-slate-200">{{ group.challenge_title }}</p>
+            <p class="text-[10px] text-slate-500">Day: {{ group.challenge_day.strftime('%b %d, %Y') }}</p>
+            {% if current_user.id in challenge_done_ids %}
+            <p class="mt-1 text-emerald-400">You marked this complete.</p>
+            {% else %}
+            <form method="post" class="mt-1">
+              <input type="hidden" name="form_part" value="challenge_done">
+              <button type="submit" class="w-full rounded-lg border border-brand-600 px-3 py-1.5 text-[11px] font-semibold text-brand-300 hover:bg-brand-950">Mark my day done</button>
+            </form>
+            {% endif %}
+            <p class="mt-1 text-[10px] text-slate-600">Completed: {{ challenge_done_ids|length }} / {{ members|length }}</p>
+          </div>
+          {% endif %}
+          <form method="post" action="{{ url_for('social.group_leave', group_id=group.id) }}" class="mt-3 border-t border-slate-800 pt-3" onsubmit="return confirm('Leave this group chat?');">
+            <button type="submit" class="w-full rounded-lg py-2 text-xs font-semibold text-rose-400 hover:bg-rose-950/40">Leave group</button>
+          </form>
+        </div>
+      </div>
     </div>
-    {% endif %}
   </div>
 
-  <div id="gc-messages" class="max-h-[40vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
+  <div id="gc-messages" class="max-h-[min(52vh,28rem)] space-y-2 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
     {% for msg in messages %}
     {% set snd = members_by_id.get(msg.sender_id) %}
     <div class="gc-msg flex {% if msg.sender_id == current_user.id %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}">
-      <div class="max-w-[85%] rounded-2xl px-3 py-2 text-sm {% if msg.sender_id == current_user.id %}bg-brand-600 text-white{% else %}bg-slate-800 text-slate-100{% endif %}">
+      <div class="gc-msg-bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm {% if msg.sender_id == current_user.id %}bg-brand-600 text-white{% else %}bg-slate-800 text-slate-100{% endif %}">
         {% if msg.sender_id != current_user.id and snd %}
         <p class="mb-1 text-[10px] font-semibold text-brand-400/90">@{{ snd.username }}</p>
         {% endif %}
@@ -93,50 +109,116 @@
 </div>
 <script>
 (function () {
-  function fmtLocal(iso) {
+  function fmtPacific(iso) {
     try {
       var d = new Date(iso);
       if (isNaN(d.getTime())) return iso;
-      return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(d);
     } catch (e) {
       return iso;
     }
   }
+  function flashBubble(bubble) {
+    if (!bubble) return;
+    bubble.classList.add("gymlink-msg-highlight");
+    window.setTimeout(function () {
+      bubble.classList.remove("gymlink-msg-highlight");
+    }, 1200);
+  }
   document.querySelectorAll(".gc-msg-time[data-utc]").forEach(function (el) {
-    el.textContent = fmtLocal(el.getAttribute("data-utc"));
+    el.textContent = fmtPacific(el.getAttribute("data-utc"));
   });
   var root = document.getElementById("gc-chat-root");
   var box = document.getElementById("gc-messages");
   var form = document.getElementById("gc-send-form");
+  var gear = document.getElementById("gc-gear-btn");
+  var menu = document.getElementById("gc-settings-menu");
+  if (gear && menu) {
+    gear.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = !menu.classList.contains("hidden");
+      if (open) {
+        menu.classList.add("hidden");
+        gear.setAttribute("aria-expanded", "false");
+      } else {
+        menu.classList.remove("hidden");
+        gear.setAttribute("aria-expanded", "true");
+      }
+    });
+    document.addEventListener("click", function () {
+      menu.classList.add("hidden");
+      gear.setAttribute("aria-expanded", "false");
+    });
+    menu.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+  }
   if (!root || !box || !form) return;
   var gid = parseInt(root.getAttribute("data-group-id"), 10);
   var meId = parseInt(root.getAttribute("data-me-id"), 10);
+  var pollUrl = root.getAttribute("data-poll-url") || "";
+  function maxMsgId() {
+    var ids = [];
+    box.querySelectorAll("[data-msg-id]").forEach(function (n) {
+      var v = parseInt(n.getAttribute("data-msg-id"), 10);
+      if (!isNaN(v)) ids.push(v);
+    });
+    return ids.length ? Math.max.apply(null, ids) : 0;
+  }
+  function appendGcMsg(payload) {
+    var wrap = document.createElement("div");
+    wrap.className = "gc-msg flex " + (payload.sender_id === meId ? "justify-end" : "justify-start");
+    wrap.setAttribute("data-msg-id", payload.id);
+    var inner = document.createElement("div");
+    inner.className =
+      "gc-msg-bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm " +
+      (payload.sender_id === meId ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-100");
+    var who =
+      payload.sender_id !== meId && payload.sender_username
+        ? '<p class="mb-1 text-[10px] font-semibold text-brand-400/90">@' +
+          String(payload.sender_username).replace(/</g, "") +
+          "</p>"
+        : payload.sender_id !== meId
+          ? '<p class="mb-1 text-[10px] font-semibold text-brand-400/90">Member</p>'
+          : "";
+    inner.innerHTML =
+      who + '<p class="gc-msg-body"></p><p class="gc-msg-time mt-1 text-[10px] opacity-70" data-utc=""></p>';
+    inner.querySelector(".gc-msg-body").textContent = payload.content || "";
+    var te = inner.querySelector(".gc-msg-time");
+    te.setAttribute("data-utc", payload.sent_at || "");
+    te.textContent = fmtPacific(payload.sent_at || "");
+    wrap.appendChild(inner);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    if (payload.sender_id !== meId) flashBubble(inner);
+  }
   try {
     var socket = typeof io !== "undefined" ? io({ transports: ["websocket", "polling"] }) : null;
     if (socket) {
       socket.on("group_message", function (payload) {
         if (!payload || payload.group_id !== gid) return;
-        var wrap = document.createElement("div");
-        wrap.className = "gc-msg flex " + (payload.sender_id === meId ? "justify-end" : "justify-start");
-        var inner = document.createElement("div");
-        inner.className =
-          "max-w-[85%] rounded-2xl px-3 py-2 text-sm " +
-          (payload.sender_id === meId ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-100");
-        inner.innerHTML =
-          (payload.sender_id !== meId
-            ? '<p class="mb-1 text-[10px] font-semibold text-brand-400/90">Member</p>'
-            : "") +
-          '<p class="gc-msg-body"></p><p class="gc-msg-time mt-1 text-[10px] opacity-70" data-utc=""></p>';
-        inner.querySelector(".gc-msg-body").textContent = payload.content || "";
-        var te = inner.querySelector(".gc-msg-time");
-        te.setAttribute("data-utc", payload.sent_at || "");
-        te.textContent = fmtLocal(payload.sent_at || "");
-        wrap.appendChild(inner);
-        box.appendChild(wrap);
-        box.scrollTop = box.scrollHeight;
+        if (box.querySelector('[data-msg-id="' + payload.id + '"]')) return;
+        appendGcMsg(payload);
       });
     }
   } catch (e) {}
+  if (pollUrl) {
+    window.setInterval(async function () {
+      try {
+        var after = maxMsgId();
+        var res = await fetch(pollUrl + "?after=" + encodeURIComponent(String(after)), { credentials: "same-origin" });
+        var data = await res.json().catch(function () { return null; });
+        if (!data || !data.ok || !Array.isArray(data.messages)) return;
+        data.messages.forEach(function (m) {
+          if (!box.querySelector('[data-msg-id="' + m.id + '"]')) appendGcMsg(m);
+        });
+      } catch (err) {}
+    }, 10000);
+  }
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
     var fd = new FormData(form);

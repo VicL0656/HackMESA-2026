@@ -176,6 +176,19 @@ def create_app():
             return em.split("@", 1)[1][:64]
         return ""
 
+    @app.template_filter("pacific")
+    def pacific_dt_filter(value, fmt: str = "%b %d · %I:%M %p") -> str:
+        """Format stored UTC datetimes for display in America/Los_Angeles."""
+        from datetime import datetime as dtmod
+
+        from pacific_display import pacific_strftime
+
+        if value is None:
+            return ""
+        if isinstance(value, dtmod):
+            return pacific_strftime(value, str(fmt))
+        return ""
+
     @app.template_filter("media_url")
     def media_url_filter(path: str | None) -> str:
         """Resolve stored upload paths and external URLs for <img src> (feed, profile, etc.)."""
