@@ -184,6 +184,8 @@ class Workout(db.Model):
     exercise_note = db.Column(db.Text, nullable=True)
     split_weekday = db.Column(db.Integer, nullable=True)  # 0=Mon..6=Sun when following split
     off_plan = db.Column(db.Boolean, nullable=False, default=False)
+    # Multi-exercise session: list of dicts with exercise_name, weight_lbs, reps, optional num_sets, etc.
+    line_items = db.Column(db.JSON, nullable=True)
 
 
 class WeightLog(db.Model):

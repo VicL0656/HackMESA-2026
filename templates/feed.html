@@ -111,6 +111,23 @@
               {% if obj.is_pr_session %}
               <span class="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">PR</span>
               {% endif %}
+              {% if obj.line_items and obj.line_items|length > 1 %}
+              <ul class="mt-2 space-y-1.5 text-sm text-slate-100">
+                {% for line in obj.line_items %}
+                <li>
+                  <span class="font-semibold text-white">{{ line.exercise_name }}</span>
+                  {% if line.weight_lbs and line.weight_lbs > 0 %}
+                  <span class="text-slate-400"> · </span>{{ "%.1f"|format(line.weight_lbs) }} lb × {{ line.reps }}
+                  {% elif line.reps and line.reps > 1 %}
+                  <span class="text-slate-400"> · </span>{{ line.reps }} reps
+                  {% endif %}
+                  {% if line.num_sets %}<span class="text-slate-500"> · {{ line.num_sets }} sets</span>{% endif %}
+                  {% if line.duration_seconds %}<span class="text-slate-500"> · {{ line.duration_seconds }}s</span>{% endif %}
+                  {% if line.exercise_note %}<span class="text-slate-500"> — {{ line.exercise_note }}</span>{% endif %}
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
               <p class="mt-2 text-sm text-slate-100">
                 <span class="font-semibold text-white">{{ obj.exercise_name }}</span>
                 {% if obj.weight_lbs and obj.weight_lbs > 0 %}
@@ -126,6 +143,7 @@
               {% if obj.exercise_note %}
               <p class="mt-1 text-xs text-slate-400">{{ obj.exercise_note }}</p>
               {% endif %}
+              {% endif %}
               {% if obj.caption %}
               <p class="mt-1 text-sm text-slate-300">{{ obj.caption }}</p>
               {% endif %}
@@ -133,13 +151,15 @@
               <div class="mt-2 flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                 <p class="mr-auto text-[10px] text-slate-500">{{ obj.logged_at|pacific }}</p>
                 {% if author.id == current_user.id and not obj.is_rest_day %}
+                {% if not obj.line_items or obj.line_items|length <= 1 %}
                 <a href="{{ url_for('workouts.edit_workout', workout_id=obj.id) }}" class="text-[10px] font-semibold text-sky-400 hover:text-sky-300">Edit</a>
+                {% endif %}
                 <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=obj.id) }}" class="inline" onsubmit="return confirm('Delete this post?');">
                   <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
                 </form>
                 <button type="button" class="gymlink-feed-share text-[10px] font-semibold text-brand-400 hover:text-brand-300"
                   data-title="GymLink"
-                  data-text="Just logged {{ obj.exercise_name }} — {{ '%.1f'|format(obj.weight_lbs) }} lb × {{ obj.reps }}{% if obj.is_pr_session %} (PR!){% endif %} on @{{ current_user.username }}"
+                  data-text="{% if obj.line_items and obj.line_items|length > 1 %}Logged {{ obj.line_items|length }} lifts on @{{ current_user.username }}{% else %}Just logged {{ obj.exercise_name }} — {{ '%.1f'|format(obj.weight_lbs) }} lb × {{ obj.reps }}{% if obj.is_pr_session %} (PR!){% endif %} on @{{ current_user.username }}{% endif %}"
                   data-url="{{ url_for('social.feed', _external=True) }}">Share</button>
                 {% if obj.is_pr_session %}
                 <button type="button" class="gymlink-share-pr text-[10px] font-semibold text-amber-300 hover:text-amber-200"

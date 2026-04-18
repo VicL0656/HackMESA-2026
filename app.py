@@ -335,6 +335,7 @@ def _sqlite_add_missing_columns() -> None:
     add_col("workouts", "exercise_note", "TEXT")
     add_col("workouts", "split_weekday", "INTEGER")
     add_col("workouts", "off_plan", "INTEGER DEFAULT 0")
+    add_col("workouts", "line_items", "TEXT")
     add_col("friend_groups", "challenge_title", "VARCHAR(200)")
     add_col("friend_groups", "challenge_day", "DATE")
 

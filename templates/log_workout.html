@@ -12,7 +12,7 @@
 
   <div>
     <h1 class="text-xl font-bold text-white">Log a workout</h1>
-    <p class="mt-1 text-sm text-slate-400">Follow today’s split when you can, or log something else. Optional sets, time, and notes show on the feed only when filled.</p>
+    <p class="mt-1 text-sm text-slate-400">Today’s plan fills in below. Edit <span class="text-white">weight</span> for every lift; adjust time for runs or timed work. Check <span class="text-white">Manual / other</span> to change sets and reps while keeping the same exercises.</p>
   </div>
 
   {% if split_plan %}
@@ -48,51 +48,158 @@
   </div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+  <form id="log-workout-form" method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl"
+    data-follow-split="{% if plan_exercises|length > 0 %}1{% else %}0{% endif %}">
     <input type="hidden" name="split_weekday" value="{{ split_weekday }}">
-    <label class="flex cursor-pointer items-center gap-2 text-xs text-amber-200/90">
-      <input type="checkbox" name="off_plan" value="1" class="rounded border-slate-600 text-amber-500">
-      Something other than today’s split
+
+    <label class="flex cursor-pointer items-start gap-2 text-xs text-amber-200/90">
+      <input type="checkbox" name="off_plan" value="1" id="off_plan_cb" class="mt-0.5 rounded border-slate-600 text-amber-500">
+      <span>Something other than today’s split — choose exercise names yourself and add rows.</span>
     </label>
-    <div>
-      <label class="block text-xs font-medium text-slate-400" for="exercise_name">Exercise</label>
-      {% include "_exercise_datalist.html" %}
-      <input list="gymlink-exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
-        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"
-        placeholder="Bench Press">
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block text-xs font-medium text-slate-400" for="weight_lbs">Weight (lb)</label>
-        <input id="weight_lbs" name="weight_lbs" inputmode="decimal"
-          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-400" for="reps">Reps</label>
-        <input id="reps" name="reps" inputmode="numeric" type="number" min="1" step="1"
-          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
-      </div>
-    </div>
-    <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-400">
-      <input type="checkbox" name="manual_other" value="1" id="manual_other" class="rounded border-slate-600 text-brand-500">
-      Manual / other — weight, reps, sets, time optional (leave blank if unknown)
+
+    <label class="flex cursor-pointer items-start gap-2 text-xs text-slate-400">
+      <input type="checkbox" name="manual_other" value="1" id="manual_other_cb" class="mt-0.5 rounded border-slate-600 text-brand-500">
+      <span>Manual / other — change <span class="text-slate-200">sets and reps</span> (exercise names stay on-plan unless you checked the option above). Weight and mile time stay editable either way.</span>
     </label>
-    <div id="manual-extras" class="hidden space-y-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[10px] text-slate-500">Sets</label>
-          <input name="num_sets" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white">
+
+    {% include "_exercise_datalist.html" %}
+
+    <div id="log-lines" class="space-y-4">
+      {% if plan_exercises|length > 0 %}
+        {% for ex in plan_exercises %}
+        {% set en = ex.name or '' %}
+        {% set pl_reps = ex.reps if ex.reps is not none else '' %}
+        {% set pl_sets = ex.sets if ex.sets is not none else '' %}
+        {% set pl_sec = ex.seconds if ex.seconds is not none else '' %}
+        {% set is_run = run_like(en) %}
+        <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3"
+          data-plan-reps="{{ pl_reps }}" data-plan-sets="{{ pl_sets }}" data-plan-sec="{{ pl_sec }}"
+          data-run="{% if is_run %}1{% else %}0{% endif %}">
+          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise {{ loop.index }}</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+            <div class="sm:col-span-4">
+              <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+              <input type="text" name="entry_name" value="{{ en }}" maxlength="120" required
+                class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
+                {% if plan_exercises|length > 0 %}readonly{% endif %} autocomplete="off">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+              <input type="text" name="entry_weight" inputmode="decimal"
+                class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+              <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1" value="{{ pl_reps if pl_reps != '' else '' }}"
+                class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+              <input type="number" name="entry_sets" min="1" step="1" value="{{ pl_sets if pl_sets != '' else '' }}"
+                class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2 log-dur-cell">
+              <label class="block text-[10px] font-medium text-slate-500">Time (sec) <span class="text-slate-600">· mile / timed</span></label>
+              <input type="number" name="entry_duration" min="1" step="1" value="{{ pl_sec if pl_sec != '' else '' }}" placeholder="—"
+                class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-12">
+              <label class="block text-[10px] font-medium text-slate-500">Note</label>
+              <input type="text" name="entry_note" maxlength="500" value="{{ ex.note or '' }}" placeholder="Optional"
+                class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
+                {% if plan_exercises|length > 0 %}readonly{% endif %}>
+            </div>
+          </div>
         </div>
-        <div>
-          <label class="text-[10px] text-slate-500">Time (sec)</label>
-          <input name="duration_seconds" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white">
+        {% endfor %}
+      {% else %}
+        <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3" data-plan-reps="" data-plan-sets="" data-plan-sec="" data-run="0">
+          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Lift</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+            <div class="sm:col-span-4">
+              <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+              <input list="gymlink-exercise-presets" type="text" name="entry_name" maxlength="120" required
+                class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
+                placeholder="Bench Press" autocomplete="off">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+              <input type="text" name="entry_weight" inputmode="decimal"
+                class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+              <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1"
+                class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+              <input type="number" name="entry_sets" min="1" step="1"
+                class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-2 log-dur-cell">
+              <label class="block text-[10px] font-medium text-slate-500">Time (sec)</label>
+              <input type="number" name="entry_duration" min="1" step="1" placeholder="—"
+                class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+            <div class="sm:col-span-12">
+              <label class="block text-[10px] font-medium text-slate-500">Note</label>
+              <input type="text" name="entry_note" maxlength="500" placeholder="Optional"
+                class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+            </div>
+          </div>
         </div>
-      </div>
-      <div>
-        <label class="text-[10px] text-slate-500">Short description</label>
-        <input name="exercise_note" maxlength="500" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white" placeholder="Optional">
-      </div>
+      {% endif %}
     </div>
+
+    <template id="log-line-tmpl">
+      <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3" data-plan-reps="" data-plan-sets="" data-plan-sec="" data-run="0">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise</p>
+          <button type="button" class="log-remove-line text-[10px] font-semibold text-rose-400 hover:text-rose-300">Remove</button>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+          <div class="sm:col-span-4">
+            <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+            <input list="gymlink-exercise-presets" type="text" name="entry_name" maxlength="120"
+              class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
+              placeholder="Lift name" autocomplete="off">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+            <input type="text" name="entry_weight" inputmode="decimal"
+              class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+            <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1"
+              class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+            <input type="number" name="entry_sets" min="1" step="1"
+              class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+          </div>
+          <div class="sm:col-span-2 log-dur-cell">
+            <label class="block text-[10px] font-medium text-slate-500">Time (sec)</label>
+            <input type="number" name="entry_duration" min="1" step="1" placeholder="—"
+              class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+          </div>
+          <div class="sm:col-span-12">
+            <label class="block text-[10px] font-medium text-slate-500">Note</label>
+            <input type="text" name="entry_note" maxlength="500" placeholder="Optional"
+              class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" id="log-add-ex" class="hidden rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-brand-500 hover:text-white">
+        Add exercise
+      </button>
+    </div>
+
     <div>
       <label class="block text-xs font-medium text-slate-400" for="caption">Caption</label>
       <textarea id="caption" name="caption" rows="2" maxlength="2000" placeholder="Optional"
@@ -122,15 +229,110 @@
 </div>
 <script>
 (function () {
-  var cb = document.getElementById("manual_other");
-  var box = document.getElementById("manual-extras");
-  if (!cb || !box) return;
-  function sync() {
-    if (cb.checked) box.classList.remove("hidden");
-    else box.classList.add("hidden");
+  var form = document.getElementById("log-workout-form");
+  var offCb = document.getElementById("off_plan_cb");
+  var manCb = document.getElementById("manual_other_cb");
+  var box = document.getElementById("log-lines");
+  var addBtn = document.getElementById("log-add-ex");
+  var tmpl = document.getElementById("log-line-tmpl");
+  if (!form || !offCb || !manCb || !box) return;
+
+  function eachLine(fn) {
+    box.querySelectorAll(".log-line").forEach(fn);
   }
-  cb.addEventListener("change", sync);
-  sync();
+
+  function syncLine(line) {
+    var off = offCb.checked;
+    var man = manCb.checked;
+    var follow = form.getAttribute("data-follow-split") === "1";
+    var run = line.getAttribute("data-run") === "1";
+    var planSec = (line.getAttribute("data-plan-sec") || "").trim();
+    var nameInp = line.querySelector(".entry-name");
+    var repsInp = line.querySelector(".entry-reps");
+    var setsInp = line.querySelector(".entry-sets");
+    var durInp = line.querySelector(".entry-dur");
+    var noteInp = line.querySelector(".entry-note");
+
+    if (off) {
+      if (nameInp) { nameInp.removeAttribute("readonly"); nameInp.removeAttribute("list"); if (!nameInp.getAttribute("list")) nameInp.setAttribute("list", "gymlink-exercise-presets"); }
+      if (repsInp) { repsInp.removeAttribute("readonly"); }
+      if (setsInp) { setsInp.removeAttribute("readonly"); }
+      if (durInp) { durInp.removeAttribute("readonly"); }
+      if (noteInp) { noteInp.removeAttribute("readonly"); }
+      return;
+    }
+
+    if (follow) {
+      if (nameInp) { nameInp.setAttribute("readonly", "readonly"); }
+      if (noteInp) { noteInp.setAttribute("readonly", "readonly"); }
+      if (man) {
+        if (repsInp) { repsInp.removeAttribute("readonly"); }
+        if (setsInp) { setsInp.removeAttribute("readonly"); }
+        if (durInp) { durInp.removeAttribute("readonly"); }
+      } else {
+        if (repsInp) {
+          repsInp.setAttribute("readonly", "readonly");
+          var pr = line.getAttribute("data-plan-reps");
+          if (pr !== null && pr !== "") repsInp.value = pr;
+        }
+        if (setsInp) {
+          setsInp.setAttribute("readonly", "readonly");
+          var ps = line.getAttribute("data-plan-sets");
+          if (ps !== null && ps !== "") setsInp.value = ps;
+        }
+        if (durInp) {
+          if (run) {
+            durInp.removeAttribute("readonly");
+          } else if (planSec) {
+            durInp.setAttribute("readonly", "readonly");
+            durInp.value = planSec;
+          } else {
+            durInp.setAttribute("readonly", "readonly");
+            durInp.value = "";
+          }
+        }
+      }
+    } else {
+      if (nameInp) { nameInp.removeAttribute("readonly"); if (!nameInp.getAttribute("list")) nameInp.setAttribute("list", "gymlink-exercise-presets"); }
+      if (repsInp) repsInp.removeAttribute("readonly");
+      if (setsInp) setsInp.removeAttribute("readonly");
+      if (durInp) durInp.removeAttribute("readonly");
+      if (noteInp) noteInp.removeAttribute("readonly");
+    }
+  }
+
+  function syncAll() {
+    eachLine(syncLine);
+    var off = offCb.checked;
+    var follow = form.getAttribute("data-follow-split") === "1";
+    if (addBtn) {
+      if (off || !follow) addBtn.classList.remove("hidden");
+      else addBtn.classList.add("hidden");
+    }
+  }
+
+  offCb.addEventListener("change", syncAll);
+  manCb.addEventListener("change", syncAll);
+  box.addEventListener("click", function (ev) {
+    var rm = ev.target && ev.target.closest && ev.target.closest(".log-remove-line");
+    if (!rm) return;
+    var line = rm.closest(".log-line");
+    var lines = box.querySelectorAll(".log-line");
+    if (line && lines.length > 1) line.remove();
+    else if (line) {
+      line.querySelectorAll("input").forEach(function (inp) { if (inp.type !== "checkbox") inp.value = ""; });
+    }
+    syncAll();
+    ev.preventDefault();
+  });
+  if (addBtn && tmpl && tmpl.content) {
+    addBtn.addEventListener("click", function () {
+      if (!offCb.checked && form.getAttribute("data-follow-split") === "1") return;
+      box.appendChild(tmpl.content.cloneNode(true));
+      syncAll();
+    });
+  }
+  syncAll();
 })();
 </script>
 {% endblock %}

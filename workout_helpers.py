@@ -68,6 +68,30 @@ def recompute_streak_for_user(user_id: int) -> None:
     streak.last_logged_date = last
 
 
+def _workout_pr_samples(w: Workout) -> list[tuple[str, float, int, Workout]]:
+    """Each logged line contributes one (exercise_name, weight, reps, workout) sample."""
+    li = getattr(w, "line_items", None)
+    if li and isinstance(li, list) and len(li) > 0:
+        out: list[tuple[str, float, int, Workout]] = []
+        for row in li:
+            if not isinstance(row, dict):
+                continue
+            en = (str(row.get("exercise_name") or "")).strip()
+            if not en:
+                continue
+            try:
+                wl = float(row.get("weight_lbs") or 0)
+            except (TypeError, ValueError):
+                wl = 0.0
+            try:
+                rp = int(row.get("reps") or 1)
+            except (TypeError, ValueError):
+                rp = 1
+            out.append((en, wl, rp, w))
+        return out
+    return [(w.exercise_name, w.weight_lbs, w.reps, w)]
+
+
 def recalculate_prs_for_user(user_id: int) -> None:
     """Delete and rebuild PersonalRecord rows from non-rest workouts."""
     PersonalRecord.query.filter_by(user_id=user_id).delete()
@@ -77,25 +101,24 @@ def recalculate_prs_for_user(user_id: int) -> None:
         .order_by(Workout.logged_at.asc(), Workout.id.asc())
         .all()
     )
-    by_ex: dict[str, list[Workout]] = defaultdict(list)
+    by_ex: dict[str, list[tuple[float, int, Workout]]] = defaultdict(list)
     for w in workouts:
-        by_ex[w.exercise_name].append(w)
+        for ex_name, wl, rp, _wref in _workout_pr_samples(w):
+            by_ex[ex_name].append((wl, rp, w))
 
     now = utcnow()
-    for ex, rows in by_ex.items():
-        best = rows[0]
-        for w in rows[1:]:
-            if w.weight_lbs > best.weight_lbs or (
-                w.weight_lbs == best.weight_lbs and w.reps > best.reps
-            ):
-                best = w
+    for ex, tuples in by_ex.items():
+        best_wl, best_rp, best_w = tuples[0]
+        for wl, rp, w in tuples[1:]:
+            if wl > best_wl or (wl == best_wl and rp > best_rp):
+                best_wl, best_rp, best_w = wl, rp, w
         db.session.add(
             PersonalRecord(
                 user_id=user_id,
                 exercise_name=ex,
-                best_weight_lbs=best.weight_lbs,
-                best_reps=best.reps,
-                achieved_at=best.logged_at or now,
+                best_weight_lbs=best_wl,
+                best_reps=best_rp,
+                achieved_at=best_w.logged_at or now,
             )
         )
 
