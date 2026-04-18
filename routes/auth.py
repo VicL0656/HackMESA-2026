@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import secrets
+from datetime import timedelta
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 
 from extensions import bcrypt, db
-from models import Streak, User
+from mail_util import mail_configured, send_email
+from models import PasswordResetToken, Streak, User
+from models import utcnow
 from username_utils import USERNAME_RE, normalize_username, resolve_user_by_email_or_username
 
 bp = Blueprint("auth", __name__)
@@ -102,3 +107,86 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
+
+
+def _hash_reset_token(token: str) -> str:
+    secret = (current_app.config.get("SECRET_KEY") or "").encode()
+    return hashlib.sha256(secret + b"|" + token.encode("utf-8")).hexdigest()
+
+
+@bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("leaderboard.home"))
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash("If that email is on file, you will receive reset instructions shortly.", "info")
+            return redirect(url_for("auth.login"))
+        raw = secrets.token_urlsafe(32)
+        th = _hash_reset_token(raw)
+        PasswordResetToken.query.filter_by(user_id=user.id, used_at=None).delete(
+            synchronize_session=False
+        )
+        db.session.add(
+            PasswordResetToken(
+                user_id=user.id,
+                token_hash=th,
+                expires_at=utcnow() + timedelta(hours=2),
+            )
+        )
+        db.session.commit()
+        link = url_for("auth.reset_password", token=raw, _external=True)
+        body = (
+            "You asked to reset your GymLink password.\n\n"
+            f"Open this link within 2 hours (one-time use):\n{link}\n\n"
+            "If you did not request this, you can ignore this email."
+        )
+        if mail_configured() and send_email(user.email, "GymLink password reset", body):
+            flash("Check your email for a reset link.", "success")
+        else:
+            flash(
+                "Password email is not configured on this server. Contact the host or set MAIL_* env vars. "
+                f"Dev link (do not share): {link}",
+                "info",
+            )
+        return redirect(url_for("auth.login"))
+    return render_template("forgot_password.html")
+
+
+@bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    if current_user.is_authenticated:
+        return redirect(url_for("leaderboard.home"))
+    th = _hash_reset_token(token)
+    row = (
+        PasswordResetToken.query.filter_by(token_hash=th, used_at=None)
+        .order_by(PasswordResetToken.id.desc())
+        .first()
+    )
+    if not row or row.expires_at < utcnow():
+        flash("That reset link is invalid or has expired.", "error")
+        return redirect(url_for("auth.forgot_password"))
+    if request.method == "POST":
+        pw = request.form.get("password") or ""
+        pw2 = request.form.get("password_confirm") or ""
+        if len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("reset_password.html", token=token)
+        if pw != pw2:
+            flash("Passwords do not match.", "error")
+            return render_template("reset_password.html", token=token)
+        user = db.session.get(User, row.user_id)
+        if not user:
+            flash("Account not found.", "error")
+            return redirect(url_for("auth.login"))
+        h = bcrypt.generate_password_hash(pw)
+        if isinstance(h, bytes):
+            h = h.decode("utf-8")
+        user.password_hash = h
+        row.used_at = utcnow()
+        db.session.commit()
+        flash("Password updated. You can log in now.", "success")
+        return redirect(url_for("auth.login"))
+    return render_template("reset_password.html", token=token)

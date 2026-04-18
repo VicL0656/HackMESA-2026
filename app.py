@@ -62,6 +62,12 @@ def create_app():
         "GYMLINK_HTTP_USER_AGENT",
         "GymLink/1.0 (gym check-in; contact your GymLink host)",
     )
+    app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "").strip()
+    app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587") or 587)
+    app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+    app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "").strip()
+    app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "").strip()
+    app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
 
     if os.environ.get("RAILWAY_PUBLIC_DOMAIN") or os.environ.get("RAILWAY_ENVIRONMENT") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
@@ -85,7 +91,9 @@ def create_app():
         Gym,
         Match,
         Message,
+        Notification,
         OutdoorActivity,
+        PasswordResetToken,
         PersonalRecord,
         Streak,
         Swipe,
@@ -97,6 +105,8 @@ def create_app():
     from routes.account import bp as account_bp
     from routes.auth import bp as auth_bp
     from routes.gym import bp as gym_bp
+    from routes.inbox import bp as inbox_bp
+    from routes.integrations import bp as integrations_bp
     from routes.leaderboard import bp as leaderboard_bp
     from routes.outdoor import bp as outdoor_bp
     from routes.social import bp as social_bp
@@ -108,9 +118,11 @@ def create_app():
     app.register_blueprint(workouts_bp)
     app.register_blueprint(leaderboard_bp)
     app.register_blueprint(social_bp)
+    app.register_blueprint(inbox_bp)
     app.register_blueprint(gym_bp)
     app.register_blueprint(outdoor_bp)
     app.register_blueprint(weights_bp)
+    app.register_blueprint(integrations_bp)
 
     @app.get("/uploads/<path:name>")
     def uploaded_file(name: str):
@@ -158,6 +170,33 @@ def create_app():
         if "@" in em:
             return em.split("@", 1)[1][:64]
         return ""
+
+    @app.template_filter("media_url")
+    def media_url_filter(path: str | None) -> str:
+        """Turn stored `/uploads/...` paths into correct URLs (fixes feed images)."""
+        if not path:
+            return ""
+        p = str(path).strip()
+        if p.startswith("http://") or p.startswith("https://"):
+            return p
+        if p.startswith("/uploads/"):
+            safe = Path(p).name
+            if not safe:
+                return p
+            return url_for("uploaded_file", name=safe)
+        return p
+
+    @app.context_processor
+    def inject_inbox_unread():
+        try:
+            if not current_user.is_authenticated:
+                return {"inbox_unread_count": 0}
+            from models import Notification
+
+            c = Notification.query.filter_by(user_id=current_user.id, read_at=None).count()
+            return {"inbox_unread_count": c}
+        except Exception:
+            return {"inbox_unread_count": 0}
 
     @app.get("/api/me/workout-today")
     @login_required
@@ -246,6 +285,7 @@ def _sqlite_add_missing_columns() -> None:
     add_col("users", "workout_days", "VARCHAR(64)")
     add_col("users", "goal_weight_lbs", "FLOAT")
     add_col("workouts", "is_rest_day", "INTEGER DEFAULT 0")
+    add_col("users", "health_bridge_token_hash", "VARCHAR(128)")
 
 
 app = create_app()

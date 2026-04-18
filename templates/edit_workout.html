@@ -32,7 +32,7 @@
     </div>
     {% if workout.photo_path %}
     <p class="text-xs text-slate-500">Current photo:</p>
-    <img src="{{ workout.photo_path }}" alt="" class="mt-1 max-h-40 rounded-lg border border-slate-800 object-cover">
+    <img src="{{ workout.photo_path|media_url }}" alt="" class="mt-1 max-h-40 rounded-lg border border-slate-800 object-cover">
     {% endif %}
     <div>
       <label class="block text-xs font-medium text-slate-400" for="photo">Replace photo (optional)</label>

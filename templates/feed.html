@@ -80,9 +80,9 @@
       {% set author = users_by_id.get(obj.user_id) %}
       <article class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg">
         {% if kind == 'workout' and obj.photo_path %}
-        <img src="{{ obj.photo_path }}" alt="" class="aspect-[4/3] w-full object-cover">
+        <img src="{{ obj.photo_path|media_url }}" alt="" class="aspect-[4/3] w-full object-cover">
         {% elif kind == 'outdoor' and obj.photo_path %}
-        <img src="{{ obj.photo_path }}" alt="" class="aspect-[4/3] w-full object-cover">
+        <img src="{{ obj.photo_path|media_url }}" alt="" class="aspect-[4/3] w-full object-cover">
         {% endif %}
         <div class="flex items-start gap-3 p-3">
           {% if author %}
@@ -120,6 +120,10 @@
                 <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=obj.id) }}" class="inline" onsubmit="return confirm('Delete this post?');">
                   <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
                 </form>
+                <button type="button" class="gymlink-feed-share text-[10px] font-semibold text-brand-400 hover:text-brand-300"
+                  data-title="GymLink"
+                  data-text="Just logged {{ obj.exercise_name }} — {{ '%.1f'|format(obj.weight_lbs) }} lb × {{ obj.reps }}{% if obj.is_pr_session %} (PR!){% endif %} on @{{ current_user.username }}"
+                  data-url="{{ url_for('social.feed', _external=True) }}">Share</button>
                 {% if obj.is_pr_session %}
                 <button type="button" class="gymlink-share-pr text-[10px] font-semibold text-amber-300 hover:text-amber-200"
                   data-weight="{{ obj.weight_lbs }}" data-exercise="{{ obj.exercise_name }}">Share PR</button>
@@ -145,7 +149,15 @@
                 {% if obj.distance_miles %}<span class="text-slate-500"> · {{ "%.1f"|format(obj.distance_miles) }} mi</span>{% endif %}
                 {% if obj.duration_minutes %}<span class="text-slate-500"> · {{ "%.0f"|format(obj.duration_minutes) }} min</span>{% endif %}
               </p>
-              <p class="mt-2 text-[10px] text-slate-500">{{ obj.posted_at.strftime('%b %d · %I:%M %p') }}</p>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <p class="text-[10px] text-slate-500">{{ obj.posted_at.strftime('%b %d · %I:%M %p') }}</p>
+                {% if author.id == current_user.id %}
+                <button type="button" class="gymlink-feed-share text-[10px] font-semibold text-brand-400 hover:text-brand-300"
+                  data-title="GymLink outdoor"
+                  data-text="{{ obj.title }} — score {{ '%.2f'|format(obj.score) }} ({{ obj.kind }}) on @{{ current_user.username }}"
+                  data-url="{{ url_for('social.feed', _external=True) }}">Share</button>
+                {% endif %}
+              </div>
             {% endif %}
           </div>
           {% endif %}
@@ -156,4 +168,28 @@
     {% endif %}
   </section>
 </div>
+<script>
+(function () {
+  document.querySelectorAll(".gymlink-feed-share").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      var title = btn.getAttribute("data-title") || "GymLink";
+      var text = btn.getAttribute("data-text") || "";
+      var url = btn.getAttribute("data-url") || window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: title, text: text, url: url });
+        } catch (e) {}
+      } else {
+        try {
+          await navigator.clipboard.writeText(text + "\n" + url);
+          btn.textContent = "Copied!";
+          setTimeout(function () { btn.textContent = "Share"; }, 2000);
+        } catch (e) {
+          prompt("Copy:", text + "\n" + url);
+        }
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

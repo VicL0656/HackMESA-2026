@@ -29,6 +29,8 @@ class User(UserMixin, db.Model):
     home_gym_id = db.Column(db.Integer, db.ForeignKey("gyms.id"), nullable=True, index=True)
     workout_days = db.Column(db.String(64), nullable=True)  # JSON list of weekday ints 0=Mon..6=Sun
     goal_weight_lbs = db.Column(db.Float, nullable=True)
+    # SHA-256 hex of server secret + token (see health_bridge_auth); for Shortcuts / Health automations only.
+    health_bridge_token_hash = db.Column(db.String(128), nullable=True, unique=True, index=True)
 
     home_gym = db.relationship("Gym", foreign_keys=[home_gym_id])
 
@@ -243,3 +245,40 @@ class Streak(db.Model):
     current_streak = db.Column(db.Integer, nullable=False, default=0)
     longest_streak = db.Column(db.Integer, nullable=False, default=0)
     last_logged_date = db.Column(db.Date, nullable=True)
+
+
+class Notification(db.Model):
+    """In-app inbox row for a single user."""
+
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    kind = db.Column(db.String(32), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=True)
+    action_url = db.Column(db.String(512), nullable=True)
+    priority = db.Column(db.Boolean, nullable=False, default=True)
+    read_at = db.Column(db.DateTime, nullable=True)
+    dedupe_key = db.Column(db.String(140), nullable=True, index=True)
+    friend_request_id = db.Column(db.Integer, db.ForeignKey("friend_requests.id"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "dedupe_key", name="uq_notification_user_dedupe"),
+        CheckConstraint(
+            "kind IN ('friend_request','friend_pr','streak_risk','system')",
+            name="ck_notification_kind",
+        ),
+    )
+
+
+class PasswordResetToken(db.Model):
+    __tablename__ = "password_reset_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = db.Column(db.String(128), nullable=False, unique=True, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)

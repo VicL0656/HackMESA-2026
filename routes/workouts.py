@@ -130,6 +130,10 @@ def log_workout():
         emit_leaderboard_refresh(current_user.id)
 
         if is_pr:
+            from notification_helpers import notify_friends_of_pr
+
+            notify_friends_of_pr(current_user, workout, exercise_name, weight_lbs, reps)
+            db.session.commit()
             return redirect(url_for("workouts.log_workout", new_pr=exercise_name))
         flash("Workout posted.", "success")
         return redirect(url_for("social.feed"))

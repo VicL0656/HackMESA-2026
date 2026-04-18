@@ -1,25 +1,119 @@
-"""Account owner-only settings (email is never shown on public profile)."""
+"""Account settings: profile, password, training prefs, home gym search."""
 
 from __future__ import annotations
 
 import json
+import math
 import re
+import secrets
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from extensions import db
+from extensions import bcrypt, db
+from geocode import geocode_city
+from health_bridge_auth import hash_health_bridge_token
+from gym_store import get_or_create_osm_gym
 from models import Gym
+from osm_gyms import discover_gyms_nearby
+from username_utils import USERNAME_RE, normalize_username
 
 bp = Blueprint("account", __name__, url_prefix="/account")
 
 _EDU = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu$")
 
 
+def _settings_context():
+    gyms = Gym.query.order_by(Gym.name).limit(500).all()
+    wd_raw = getattr(current_user, "workout_days", None) or "[]"
+    try:
+        workout_day_set = {int(x) for x in json.loads(wd_raw)}
+    except (json.JSONDecodeError, TypeError, ValueError):
+        workout_day_set = set()
+    return {"gyms": gyms, "workout_day_set": workout_day_set}
+
+
+def _settings_render(health_bridge_token_plain: str | None = None):
+    ctx = _settings_context()
+    ctx["health_bridge_token_plain"] = health_bridge_token_plain
+    return render_template("account_settings.html", **ctx)
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius = 6371000.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    a = min(1.0, max(0.0, a))
+    return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(max(1e-12, 1.0 - a)))
+
+
 @bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
     if request.method == "POST":
+        part = (request.form.get("form_part") or "training").strip()
+
+        if part == "profile":
+            name = (request.form.get("name") or "").strip()
+            username_raw = (request.form.get("username") or "").strip()
+            username = normalize_username(username_raw)
+            if not name:
+                flash("Display name is required.", "error")
+                return redirect(url_for("account.settings"))
+            if not username or not USERNAME_RE.match(username):
+                flash("Username must be 3–30 characters: lowercase letters, numbers, underscores.", "error")
+                return redirect(url_for("account.settings"))
+            from models import User
+
+            clash = User.query.filter(User.username == username, User.id != current_user.id).first()
+            if clash:
+                flash("That username is already taken.", "error")
+                return redirect(url_for("account.settings"))
+            current_user.name = name[:120]
+            current_user.username = username
+            db.session.commit()
+            flash("Profile updated.", "success")
+            return redirect(url_for("account.settings"))
+
+        if part == "health_new":
+            token = secrets.token_urlsafe(32)
+            th = hash_health_bridge_token(current_app.config.get("SECRET_KEY") or "", token)
+            current_user.health_bridge_token_hash = th
+            db.session.commit()
+            flash("Copy the token below now. Generating a new one replaces the previous token.", "success")
+            return _settings_render(health_bridge_token_plain=token)
+
+        if part == "health_revoke":
+            current_user.health_bridge_token_hash = None
+            db.session.commit()
+            flash("Health bridge token removed.", "info")
+            return redirect(url_for("account.settings"))
+
+        if part == "password":
+            old_pw = request.form.get("current_password") or ""
+            new_pw = request.form.get("new_password") or ""
+            new2 = request.form.get("new_password_confirm") or ""
+            if len(new_pw) < 8:
+                flash("New password must be at least 8 characters.", "error")
+                return redirect(url_for("account.settings"))
+            if new_pw != new2:
+                flash("New passwords do not match.", "error")
+                return redirect(url_for("account.settings"))
+            if not bcrypt.check_password_hash(current_user.password_hash, old_pw):
+                flash("Current password is incorrect.", "error")
+                return redirect(url_for("account.settings"))
+            h = bcrypt.generate_password_hash(new_pw)
+            if isinstance(h, bytes):
+                h = h.decode("utf-8")
+            current_user.password_hash = h
+            db.session.commit()
+            flash("Password updated.", "success")
+            return redirect(url_for("account.settings"))
+
+        # training (default)
         current_user.goal_weight_lbs = None
         gw = (request.form.get("goal_weight_lbs") or "").strip()
         if gw:
@@ -54,14 +148,100 @@ def settings():
         flash("Training preferences saved.", "success")
         return redirect(url_for("account.settings"))
 
-    gyms = Gym.query.order_by(Gym.name).limit(500).all()
-    wd_raw = getattr(current_user, "workout_days", None) or "[]"
+    return _settings_render()
+
+
+@bp.post("/api/gym-search")
+@login_required
+def api_gym_search():
+    """Geocode a city/area, then return nearby gyms from OSM (saved to DB on pick)."""
+    data = request.get_json(silent=True) or {}
+    q = (data.get("query") or data.get("city") or "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": False, "error": "Enter a city or neighborhood."}), 400
+    ua = str(current_app.config.get("GYMLINK_HTTP_USER_AGENT", "GymLink/1.0"))
+    coords = geocode_city(q, user_agent=ua)
+    if not coords:
+        return jsonify({"ok": False, "error": "Could not find that location. Try a larger nearby city."}), 400
+    lat, lon = coords
+    overpass_url = str(current_app.config.get("OVERPASS_API_URL"))
+    radius = min(float(data.get("radius_m") or 25000), 50000)
+    raw = discover_gyms_nearby(lat, lon, radius, overpass_url=overpass_url, user_agent=ua)
+    out: list[dict] = []
+    seen: set[str] = set()
+    for entry in raw[:40]:
+        key = (entry.get("osm_key") or "")[:32]
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        glat = float(entry["latitude"])
+        glng = float(entry["longitude"])
+        d = _haversine_meters(lat, lon, glat, glng)
+        row = Gym.query.filter_by(osm_key=key).first() if key else None
+        out.append(
+            {
+                "id": row.id if row else None,
+                "osm_key": key or None,
+                "name": str(entry.get("name") or "Gym")[:200],
+                "address": str(entry.get("address") or "")[:300],
+                "latitude": glat,
+                "longitude": glng,
+                "distance_m": round(d, 0),
+            }
+        )
+    return jsonify({"ok": True, "center": {"lat": lat, "lon": lon}, "gyms": out})
+
+
+@bp.post("/api/gym-pick")
+@login_required
+def api_gym_pick():
+    data = request.get_json(silent=True) or {}
+    gym_id = data.get("gym_id")
+    entry = data.get("entry")
+    if gym_id is not None:
+        try:
+            gid = int(gym_id)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid gym id."}), 400
+        g = db.session.get(Gym, gid)
+        if not g:
+            return jsonify({"ok": False, "error": "Gym not found."}), 404
+        current_user.home_gym_id = g.id
+        db.session.commit()
+        return jsonify({"ok": True, "gym": {"id": g.id, "name": g.name}})
+    if isinstance(entry, dict) and entry.get("latitude") is not None:
+        g = get_or_create_osm_gym(entry)
+        current_user.home_gym_id = g.id
+        db.session.commit()
+        return jsonify({"ok": True, "gym": {"id": g.id, "name": g.name}})
+    return jsonify({"ok": False, "error": "Provide gym_id or entry."}), 400
+
+
+@bp.post("/api/gym-manual")
+@login_required
+def api_gym_manual():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    address = (data.get("address") or "").strip() or "Custom"
     try:
-        workout_day_set = {int(x) for x in json.loads(wd_raw)}
-    except (json.JSONDecodeError, TypeError, ValueError):
-        workout_day_set = set()
-    return render_template(
-        "account_settings.html",
-        gyms=gyms,
-        workout_day_set=workout_day_set,
+        lat = float(data.get("latitude"))
+        lng = float(data.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Latitude and longitude are required."}), 400
+    if not name:
+        return jsonify({"ok": False, "error": "Gym name is required."}), 400
+    if not math.isfinite(lat) or not math.isfinite(lng) or abs(lat) > 90 or abs(lng) > 180:
+        return jsonify({"ok": False, "error": "Invalid coordinates."}), 400
+    g = Gym(
+        name=name[:200],
+        address=address[:300],
+        latitude=lat,
+        longitude=lng,
+        osm_key=None,
     )
+    db.session.add(g)
+    db.session.flush()
+    current_user.home_gym_id = g.id
+    db.session.commit()
+    return jsonify({"ok": True, "gym": {"id": g.id, "name": g.name}})

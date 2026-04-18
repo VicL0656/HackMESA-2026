@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 from extensions import db
+from gym_store import get_or_create_osm_gym
 from models import CheckIn, Gym, User, utcnow
 from osm_gyms import discover_gyms_nearby
 
@@ -64,23 +65,6 @@ def nearest_gym(lat: float, lng: float, max_meters: float):
     return best, best_d, best
 
 
-def _get_or_create_osm_gym(entry: dict) -> Gym:
-    key = (entry.get("osm_key") or "")[:32]
-    existing = Gym.query.filter_by(osm_key=key).first() if key else None
-    if existing:
-        return existing
-    g = Gym(
-        name=str(entry.get("name") or "Fitness facility")[:200],
-        address=str(entry.get("address") or "OpenStreetMap")[:300],
-        latitude=float(entry["latitude"]),
-        longitude=float(entry["longitude"]),
-        osm_key=key or None,
-    )
-    db.session.add(g)
-    db.session.flush()
-    return g
-
-
 @bp.post("/checkin")
 @login_required
 def checkin():
@@ -112,7 +96,7 @@ def checkin():
                 best_d_osm = d
                 best_entry = entry
         if best_entry is not None and best_d_osm is not None:
-            gym = _get_or_create_osm_gym(best_entry)
+            gym = get_or_create_osm_gym(best_entry)
             distance = best_d_osm
 
     if gym is None:

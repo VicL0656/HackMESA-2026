@@ -185,6 +185,9 @@ def friends_add():
     if reverse:
         _ensure_match(current_user.id, other.id)
         _finalize_friend_requests(current_user.id, other.id)
+        from notification_helpers import mark_friend_requests_between_users_read
+
+        mark_friend_requests_between_users_read(current_user.id, other.id)
         db.session.commit()
         flash(f"You and {other.name} are now gym friends.", "success")
         return redirect(url_for("social.profile"))
@@ -206,14 +209,17 @@ def friends_add():
         flash("You are already connected with that lifter.", "info")
         return redirect(url_for("social.profile"))
 
-    db.session.add(
-        FriendRequest(
-            from_user_id=current_user.id,
-            to_user_id=other.id,
-            status="pending",
-            created_at=utcnow(),
-        )
+    fr = FriendRequest(
+        from_user_id=current_user.id,
+        to_user_id=other.id,
+        status="pending",
+        created_at=utcnow(),
     )
+    db.session.add(fr)
+    db.session.flush()
+    from notification_helpers import notify_friend_request_created
+
+    notify_friend_request_created(fr)
     db.session.commit()
     flash(f"Friend request sent to {other.name}.", "success")
     return redirect(url_for("social.profile"))
@@ -245,6 +251,9 @@ def friend_request_accept(request_id: int):
 
     _ensure_match(req.from_user_id, req.to_user_id)
     _finalize_friend_requests(req.from_user_id, req.to_user_id)
+    from notification_helpers import mark_friend_request_notifications_read
+
+    mark_friend_request_notifications_read(current_user.id, req.id)
     db.session.commit()
     flash("Friend request accepted.", "success")
     return redirect(url_for("social.profile"))
@@ -258,6 +267,9 @@ def friend_request_decline(request_id: int):
         flash("That request is not available.", "error")
         return redirect(url_for("social.profile"))
 
+    from notification_helpers import mark_friend_request_notifications_read
+
+    mark_friend_request_notifications_read(current_user.id, req.id)
     req.status = "declined"
     db.session.commit()
     flash("Friend request declined.", "info")
@@ -335,9 +347,54 @@ def swipe():
         if direction == "right":
             m = _try_create_match(current_user.id, swipee_id)
             if m:
+                _finalize_friend_requests(current_user.id, swipee_id)
+                from notification_helpers import mark_friend_requests_between_users_read
+
+                mark_friend_requests_between_users_read(current_user.id, swipee_id)
                 flash("It is a match! You are now gym friends.", "success")
             else:
-                flash("Friend request sent.", "success")
+                rev = FriendRequest.query.filter_by(
+                    from_user_id=swipee_id,
+                    to_user_id=current_user.id,
+                    status="pending",
+                ).first()
+                if rev:
+                    _ensure_match(current_user.id, swipee_id)
+                    _finalize_friend_requests(current_user.id, swipee_id)
+                    from notification_helpers import mark_friend_requests_between_users_read
+
+                    mark_friend_requests_between_users_read(current_user.id, swipee_id)
+                    flash("It is a match! You are now gym friends.", "success")
+                else:
+                    out = FriendRequest.query.filter_by(
+                        from_user_id=current_user.id,
+                        to_user_id=swipee_id,
+                    ).first()
+                    if not out:
+                        fr = FriendRequest(
+                            from_user_id=current_user.id,
+                            to_user_id=swipee_id,
+                            status="pending",
+                            created_at=utcnow(),
+                        )
+                        db.session.add(fr)
+                        db.session.flush()
+                        from notification_helpers import notify_friend_request_created
+
+                        notify_friend_request_created(fr)
+                        flash("Friend request sent.", "success")
+                    elif out.status == "pending":
+                        flash("Friend request already pending.", "info")
+                    elif out.status == "declined":
+                        out.status = "pending"
+                        out.created_at = utcnow()
+                        db.session.flush()
+                        from notification_helpers import notify_friend_request_created
+
+                        notify_friend_request_created(out)
+                        flash("Friend request sent again.", "success")
+                    else:
+                        flash("You are already connected with that lifter.", "info")
         else:
             flash("Skipped.", "info")
         db.session.commit()
