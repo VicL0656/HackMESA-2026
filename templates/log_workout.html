@@ -27,8 +27,14 @@
 
   <div>
     <h1 class="text-xl font-bold text-white">Log a workout</h1>
-    <p class="mt-1 text-sm text-slate-400">Today’s plan fills in below. <span class="text-emerald-400/90">Green-tinted fields</span> are editable; <span class="text-slate-500">gray labels</span> follow the plan until you use the checkboxes. <span class="font-medium text-amber-200/90">Something other than today’s split</span> unlocks names, notes, and row removal. <span class="font-medium text-sky-300/90">Manual / other</span> keeps names on-plan but lets you edit sets and reps.</p>
+    <p class="mt-1 text-sm text-slate-400">Saves to your <a href="{{ url_for('social.profile') }}#gym-journal" class="font-medium text-brand-400 hover:text-brand-300">training journal</a> on your profile. Friends can still see your lifts on the feed. <span class="text-emerald-400/90">Green-tinted fields</span> are editable; <span class="text-slate-500">gray labels</span> follow the plan until you use the checkboxes. <span class="font-medium text-amber-200/90">Something other than today’s split</span> unlocks names, notes, and row removal. <span class="font-medium text-sky-300/90">Manual / other</span> keeps names on-plan but lets you edit sets and reps.</p>
   </div>
+
+  <section class="rounded-2xl border border-sky-800/60 bg-sky-950/20 p-4">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-sky-300/90">Outdoor</h2>
+    <p class="mt-1 text-xs text-slate-400">Runs, rides, hikes, swims, and other outdoor sessions use a separate form. They’re listed in your training journal too.</p>
+    <a href="{{ url_for('outdoor.log_outdoor') }}" class="mt-3 inline-flex rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-500">Log outdoor session</a>
+  </section>
 
   {% if split_plan %}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
@@ -240,7 +246,7 @@
     </div>
     <button type="submit"
       class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-brand-500">
-      Post to feed
+      Save to training journal
     </button>
   </form>
 

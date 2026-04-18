@@ -287,8 +287,8 @@ def log_workout():
             _update_streak_for_log(current_user.id)
             db.session.commit()
             emit_leaderboard_refresh(current_user.id)
-            flash("Rest day logged — streak preserved.", "success")
-            return redirect(url_for("social.feed"))
+            flash("Rest day saved to your training journal.", "success")
+            return redirect(url_for("social.profile") + "#gym-journal")
 
         caption = (request.form.get("caption") or "").strip() or None
         manual_other = request.form.get("manual_other") == "1"
@@ -372,9 +372,9 @@ def log_workout():
 
             notify_friends_of_pr(current_user, workout, pr_exercise_name, pr_weight, pr_reps)
             db.session.commit()
-            return redirect(url_for("workouts.log_workout", new_pr=pr_exercise_name))
-        flash("Workout posted.", "success")
-        return redirect(url_for("social.feed"))
+            return redirect(url_for("social.profile", new_pr=pr_exercise_name) + "#gym-journal")
+        flash("Saved to your training journal.", "success")
+        return redirect(url_for("social.profile") + "#gym-journal")
 
     return render_template("log_workout.html", **_log_page_ctx())
 
@@ -387,7 +387,7 @@ def edit_workout(workout_id: int):
         abort(404)
     if w.line_items and isinstance(w.line_items, list) and len(w.line_items) > 1:
         flash("Multi-exercise posts can’t be edited yet. Delete this post and log again if you need to change lifts.", "info")
-        return redirect(url_for("social.feed"))
+        return redirect(url_for("social.profile") + "#gym-journal")
     if request.method == "POST":
         exercise_name = (request.form.get("exercise_name") or "").strip()
         try:
@@ -418,7 +418,7 @@ def edit_workout(workout_id: int):
         db.session.commit()
         emit_leaderboard_refresh(current_user.id)
         flash("Workout updated.", "success")
-        return redirect(url_for("social.feed"))
+        return redirect(url_for("social.profile") + "#gym-journal")
     return render_template("edit_workout.html", workout=w)
 
 
@@ -435,4 +435,4 @@ def delete_workout(workout_id: int):
     db.session.commit()
     emit_leaderboard_refresh(current_user.id)
     flash("Workout deleted.", "info")
-    return redirect(url_for("social.feed"))
+    return redirect(url_for("social.profile") + "#gym-journal")

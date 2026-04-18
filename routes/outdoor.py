@@ -75,8 +75,8 @@ def log_outdoor():
         db.session.add(row)
         db.session.commit()
         emit_leaderboard_refresh(current_user.id)
-        flash("Outdoor session posted to your feed.", "success")
-        return redirect(url_for("social.feed"))
+        flash("Outdoor session saved to your training journal.", "success")
+        return redirect(url_for("social.profile") + "#gym-journal")
 
     return render_template("outdoor_log.html", kinds=OUTDOOR_KINDS)
 

@@ -2,9 +2,12 @@
 {% block title %}Log outdoor · GymLink{% endblock %}
 {% block content %}
 <div class="space-y-5">
+  <p class="text-center text-xs">
+    <a href="{{ url_for('workouts.log_workout') }}" class="text-slate-500 hover:text-brand-400">← Gym log &amp; training journal</a>
+  </p>
   <div>
     <h1 class="text-xl font-bold text-white">Outdoor session</h1>
-    <p class="mt-1 text-sm text-slate-400">Post runs, rides, hikes, and more. Friends compete on the Outdoor tab of the leaderboard using your <span class="font-semibold text-white">score</span> (higher is better).</p>
+    <p class="mt-1 text-sm text-slate-400">Saves to your <a href="{{ url_for('social.profile') }}#gym-journal" class="font-medium text-brand-400 hover:text-brand-300">training journal</a>. Friends still see outdoor posts on the feed and compete on the Outdoor tab of the leaderboard using your <span class="font-semibold text-white">score</span> (higher is better).</p>
   </div>
 
   <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
@@ -56,7 +59,7 @@
         class="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
     </div>
     <button type="submit" class="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-sky-500">
-      Post to feed
+      Save to training journal
     </button>
   </form>
 

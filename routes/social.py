@@ -922,10 +922,16 @@ def profile():
     suggested = _suggested_friends_same_gym(
         current_user.id, getattr(current_user, "home_gym_id", None)
     )
-    recent_workouts = (
+    journal_workouts = (
         Workout.query.filter_by(user_id=current_user.id)
         .order_by(Workout.logged_at.desc())
-        .limit(20)
+        .limit(80)
+        .all()
+    )
+    journal_outdoor = (
+        OutdoorActivity.query.filter_by(user_id=current_user.id)
+        .order_by(OutdoorActivity.posted_at.desc())
+        .limit(30)
         .all()
     )
 
@@ -988,7 +994,8 @@ def profile():
         outgoing_rows=outgoing_rows,
         latest_weight=latest_w,
         suggested_friends=suggested,
-        recent_workouts=recent_workouts,
+        journal_workouts=journal_workouts,
+        journal_outdoor=journal_outdoor,
         split_days=_fc["days"],
         split_display_lines=_lines,
         split_display_legacy=_legacy,

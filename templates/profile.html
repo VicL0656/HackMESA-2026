@@ -22,6 +22,84 @@
     </div>
   </div>
 
+  <section id="gym-journal" class="scroll-mt-24 rounded-2xl border border-brand-500/25 bg-brand-500/5 p-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h2 class="text-sm font-semibold text-white">Training journal</h2>
+        <p class="mt-1 text-xs text-slate-500">Every gym log, rest day, and outdoor session you save shows up here so you can track your own history. Logging from the Log tab opens on this section when you’re done.</p>
+      </div>
+      <a href="{{ url_for('workouts.log_workout') }}" class="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-500">Log workout</a>
+    </div>
+    {% if request.args.get('new_pr') %}
+    <div class="mt-3 rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-amber-200">New PR</p>
+      <p class="mt-0.5 text-sm font-bold text-white">{{ request.args.get('new_pr') }}</p>
+    </div>
+    {% endif %}
+
+    <h3 class="mt-5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Gym</h3>
+    {% if journal_workouts %}
+    <ul class="mt-2 space-y-2">
+      {% for w in journal_workouts %}
+      <li class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0 text-sm">
+          {% if w.is_rest_day %}
+          <p class="font-medium text-slate-300">Rest day</p>
+          <p class="text-[10px] text-slate-500">{{ w.logged_at|pacific }}</p>
+          {% else %}
+          {% if w.line_items and w.line_items|length > 1 %}
+          <p class="font-semibold text-white">{{ w.line_items|length }} exercises</p>
+          <ul class="mt-1 space-y-0.5 text-xs text-slate-300">
+            {% for line in w.line_items %}
+            <li><span class="text-white">{{ line.exercise_name }}</span>{% if line.weight_lbs and line.weight_lbs > 0 %} · {{ "%.1f"|format(line.weight_lbs) }} lb × {{ line.reps }}{% elif line.reps %} · {{ line.reps }} reps{% endif %}{% if line.duration_seconds %} · {{ line.duration_seconds }}s{% endif %}</li>
+            {% endfor %}
+          </ul>
+          {% if w.is_pr_session %}<p class="mt-1 text-[10px] font-semibold text-amber-400">PR session</p>{% endif %}
+          {% else %}
+          <p class="font-semibold text-white">{{ w.exercise_name }}</p>
+          <p class="text-xs text-slate-400">{{ "%.1f"|format(w.weight_lbs) }} lb × {{ w.reps }}{% if w.num_sets %} · {{ w.num_sets }} sets{% endif %}{% if w.duration_seconds %} · {{ w.duration_seconds }}s{% endif %}{% if w.is_pr_session %} · <span class="text-amber-400">PR</span>{% endif %}</p>
+          {% if w.caption %}<p class="mt-1 text-[11px] text-slate-500">{{ w.caption }}</p>{% endif %}
+          {% endif %}
+          <p class="text-[10px] text-slate-500">{{ w.logged_at|pacific }}</p>
+          {% endif %}
+        </div>
+        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {% if not w.is_rest_day %}
+          {% if not w.line_items or w.line_items|length <= 1 %}
+          <a href="{{ url_for('workouts.edit_workout', workout_id=w.id) }}" class="text-[10px] font-semibold text-sky-400 hover:text-sky-300">Edit</a>
+          {% endif %}
+          {% endif %}
+          <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=w.id) }}" onsubmit="return confirm('Delete this entry from your journal?');">
+            <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-2 text-xs text-slate-500">No gym sessions logged yet. Use <span class="text-slate-300">Log workout</span> above.</p>
+    {% endif %}
+
+    <h3 class="mt-6 text-[10px] font-bold uppercase tracking-wide text-slate-400">Outdoor</h3>
+    {% if journal_outdoor %}
+    <ul class="mt-2 space-y-2">
+      {% for o in journal_outdoor %}
+      <li class="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0 text-sm">
+          <p class="font-semibold text-white">{{ o.title }} <span class="text-[10px] font-normal uppercase text-sky-400/90">({{ o.kind }})</span></p>
+          <p class="text-xs text-slate-400">Score {{ "%.2f"|format(o.score) }}{% if o.score_label %} · {{ o.score_label }}{% endif %}{% if o.distance_miles %} · {{ "%.1f"|format(o.distance_miles) }} mi{% endif %}{% if o.duration_minutes %} · {{ "%.0f"|format(o.duration_minutes) }} min{% endif %}</p>
+          <p class="text-[10px] text-slate-500">{{ o.posted_at|pacific }}</p>
+        </div>
+        <a href="{{ url_for('outdoor.exercise_history', kind=o.kind) }}" class="shrink-0 text-[10px] font-semibold text-sky-400 hover:text-sky-300">History</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-2 text-xs text-slate-500">No outdoor sessions yet. Log from the <a href="{{ url_for('workouts.log_workout') }}" class="text-brand-400 hover:text-brand-300">Log</a> tab.</p>
+    {% endif %}
+    <a href="{{ url_for('outdoor.log_outdoor') }}" class="mt-3 inline-flex text-xs font-semibold text-sky-400 hover:text-sky-300">Log outdoor session →</a>
+  </section>
+
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-slate-200">Settings &amp; tools</h2>
     <p class="mt-1 text-xs text-slate-500">Username, password, home-gym search, reminders, and privacy live in Settings.</p>
@@ -368,43 +446,6 @@
       <p class="mt-1 text-sm text-slate-200">{{ current_user.goals or 'Nothing here yet — this is the short line from registration for your bio vibe.' }}</p>
     </div>
   </div>
-
-  {% if recent_workouts %}
-  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">Recent logged workouts</h2>
-    <ul class="mt-3 space-y-2">
-      {% for w in recent_workouts %}
-      <li class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0 text-sm">
-          {% if w.is_rest_day %}
-          <p class="font-medium text-slate-300">Rest day</p>
-          <p class="text-[10px] text-slate-500">{{ w.logged_at|pacific }}</p>
-          {% else %}
-          {% if w.line_items and w.line_items|length > 1 %}
-          <p class="font-semibold text-white">{{ w.line_items|length }} exercises <span class="font-normal text-slate-500">· {{ w.line_items[0].exercise_name }} +{{ w.line_items|length - 1 }} more</span></p>
-          <p class="text-xs text-slate-400">See feed for full breakdown{% if w.is_pr_session %} · <span class="text-amber-400">PR</span>{% endif %}</p>
-          {% else %}
-          <p class="font-semibold text-white">{{ w.exercise_name }}</p>
-          <p class="text-xs text-slate-400">{{ "%.1f"|format(w.weight_lbs) }} lb × {{ w.reps }}{% if w.is_pr_session %} · <span class="text-amber-400">PR</span>{% endif %}</p>
-          {% endif %}
-          <p class="text-[10px] text-slate-500">{{ w.logged_at|pacific }}</p>
-          {% endif %}
-        </div>
-        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          {% if not w.is_rest_day %}
-          {% if not w.line_items or w.line_items|length <= 1 %}
-          <a href="{{ url_for('workouts.edit_workout', workout_id=w.id) }}" class="text-[10px] font-semibold text-sky-400 hover:text-sky-300">Edit</a>
-          {% endif %}
-          {% endif %}
-          <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=w.id) }}" onsubmit="return confirm('Delete this entry from your log?');">
-            <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
-          </form>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
 
   <div>
     <div class="mb-2 flex items-center justify-between">
