@@ -7,9 +7,13 @@
     <p class="mt-1 text-sm text-slate-400">Log in to see your friends leaderboard and gym feed.</p>
   </div>
   <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+    {% if request.args.get('next') %}
+    <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+    {% endif %}
     <div>
-      <label class="block text-xs font-medium text-slate-400" for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="username" required
+      <label class="block text-xs font-medium text-slate-400" for="identifier">Email or username</label>
+      <input id="identifier" name="identifier" type="text" autocomplete="username" required
+        placeholder="you@email.com or your_handle"
         class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
     </div>
     <div>
@@ -17,6 +21,13 @@
       <input id="password" name="password" type="password" autocomplete="current-password" required
         class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
     </div>
+    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3">
+      <input type="checkbox" name="remember" value="1" class="mt-1 rounded border-slate-600 text-brand-500">
+      <span>
+        <span class="block text-sm font-medium text-slate-200">Stay signed in</span>
+        <span class="block text-[11px] text-slate-500">About 30 days on this device.</span>
+      </span>
+    </label>
     <button type="submit"
       class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-brand-500">
       Log in

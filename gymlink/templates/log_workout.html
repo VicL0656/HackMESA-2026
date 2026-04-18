@@ -11,11 +11,11 @@
   {% endif %}
 
   <div>
-    <h1 class="text-xl font-bold text-white">Log a set</h1>
-    <p class="mt-1 text-sm text-slate-400">We will auto-detect PRs and keep your streak honest (one bump per day).</p>
+    <h1 class="text-xl font-bold text-white">Post a lift</h1>
+    <p class="mt-1 text-sm text-slate-400">PRs update automatically for the lifting leaderboard. Add a caption or photo for the feed.</p>
   </div>
 
-  <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+  <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
     <div>
       <label class="block text-xs font-medium text-slate-400" for="exercise_name">Exercise</label>
       <input list="exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
@@ -41,10 +41,31 @@
           class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
       </div>
     </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="caption">Caption</label>
+      <textarea id="caption" name="caption" rows="2" maxlength="2000" placeholder="Optional — how it felt, cues, hype…"
+        class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"></textarea>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400" for="photo">Photo</label>
+      <input id="photo" name="photo" type="file" accept="image/*"
+        class="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
+    </div>
     <button type="submit"
       class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-brand-500">
-      Save workout
+      Post to feed
     </button>
   </form>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+    <h2 class="text-sm font-semibold text-white">Rest day</h2>
+    <p class="mt-1 text-xs text-slate-500">Log a rest day to keep your streak without a lift. One per calendar day is enough.</p>
+    <form method="post" class="mt-3">
+      <input type="hidden" name="rest_day" value="1">
+      <button type="submit" class="w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:border-brand-500 hover:text-white">
+        Log rest day
+      </button>
+    </form>
+  </div>
 </div>
 {% endblock %}

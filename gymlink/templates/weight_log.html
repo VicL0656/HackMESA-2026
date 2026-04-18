@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Body weight · GymLink{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <div>
+    <h1 class="text-xl font-bold text-white">Body weight</h1>
+    <p class="mt-1 text-sm text-slate-400">Track over time. Visibility controls future sharing if we add public profiles.</p>
+  </div>
+
+  {% if logs %}
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+    <canvas id="weight-chart" height="180"></canvas>
+  </div>
+  {% endif %}
+
+  <form method="post" class="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-400" for="weight_lbs">Weight (lb)</label>
+        <input id="weight_lbs" name="weight_lbs" required inputmode="decimal" step="0.1"
+          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400" for="visibility">Visibility</label>
+        <select id="visibility" name="visibility"
+          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+          <option value="public">Public</option>
+          <option value="friends" selected>Friends only</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Log weight</button>
+  </form>
+
+  {% if logs %}
+  <ul class="space-y-2">
+    {% for row in logs|reverse %}
+    <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm">
+      <div>
+        <p class="font-semibold text-white">{{ "%.1f"|format(row.weight_lbs) }} lb</p>
+        <p class="text-[10px] text-slate-500">{{ row.logged_at.strftime('%b %d, %Y') }} · {{ row.visibility }}</p>
+      </div>
+      <form method="post" action="{{ url_for('weights.weight_delete', log_id=row.id) }}" onsubmit="return confirm('Delete this entry?');">
+        <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-center text-sm text-slate-500">No entries yet. Add your first weight above.</p>
+  {% endif %}
+
+  <p class="text-center text-xs text-slate-500">
+    <a href="{{ url_for('social.profile') }}" class="font-semibold text-brand-500 hover:text-brand-400">Back to profile</a>
+  </p>
+</div>
+
+<script>
+  (function () {
+    const el = document.getElementById("weight-chart");
+    if (!el || typeof Chart === "undefined") return;
+    const labels = {{ chart_labels|tojson }};
+    const data = {{ chart_data|tojson }};
+    new Chart(el, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "lb",
+            data,
+            borderColor: "rgb(34, 197, 94)",
+            backgroundColor: "rgba(34, 197, 94, 0.15)",
+            tension: 0.25,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#94a3b8", maxRotation: 45, minRotation: 0 } },
+          y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.12)" } },
+        },
+      },
+    });
+  })();
+</script>
+{% endblock %}

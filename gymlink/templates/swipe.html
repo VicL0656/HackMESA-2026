@@ -5,6 +5,18 @@
   <div>
     <h1 class="text-xl font-bold text-white">Find lifters</h1>
     <p class="mt-1 text-sm text-slate-400">Swipe right to send a friend request. Mutual right swipes unlock gym friend status and leaderboard sharing.</p>
+    {% if has_school %}
+    <p class="mt-2 text-xs text-slate-500">
+      {% if same_school_only %}
+      Showing <span class="font-semibold text-white">same school</span> only.
+      <a href="{{ url_for('social.swipe') }}" class="ml-1 font-semibold text-brand-500 hover:text-brand-400">Show everyone</a>
+      {% else %}
+      <a href="{{ url_for('social.swipe', school=1) }}" class="font-semibold text-brand-500 hover:text-brand-400">Same school only</a>
+      {% endif %}
+    </p>
+    {% else %}
+    <p class="mt-2 text-xs text-slate-500">Add your school on your profile to filter swipes by campus.</p>
+    {% endif %}
   </div>
 
   {% if not candidate %}
@@ -18,8 +30,11 @@
     </div>
     <div class="space-y-2 p-4">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="truncate text-2xl font-bold text-white">{{ candidate.name }}</h2>
-        <span class="rounded-full bg-slate-800 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-300">
+        <div class="min-w-0">
+          <h2 class="truncate text-2xl font-bold text-white">{{ candidate.name }}{% set sb = candidate|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</h2>
+          <p class="truncate font-mono text-sm text-brand-500/90">@{{ candidate.username }}</p>
+        </div>
+        <span class="shrink-0 self-start rounded-full bg-slate-800 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-300">
           {{ candidate.workout_style or 'Athlete' }}
         </span>
       </div>

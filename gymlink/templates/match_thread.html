@@ -9,7 +9,8 @@
   <div class="flex items-center gap-3">
     <img src="{{ other.photo_url }}" alt="" class="h-12 w-12 rounded-2xl border border-slate-800 object-cover">
     <div>
-      <h1 class="text-lg font-bold text-white">{{ other.name }}</h1>
+      <h1 class="text-lg font-bold text-white">{{ other.name }}{% set sb = other|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</h1>
+      <p class="font-mono text-xs text-brand-500/90">@{{ other.username }}</p>
       <p class="text-xs text-slate-500">{{ other.workout_style or 'Training partner' }}</p>
     </div>
   </div>

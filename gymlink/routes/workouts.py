@@ -1,12 +1,14 @@
 from datetime import date, timedelta
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from extensions import db
 from models import PersonalRecord, Streak, Workout
 from models import utcnow
 from realtime import emit_leaderboard_refresh
+from uploads_util import save_uploaded_image
+from workout_helpers import recalculate_prs_for_user, recompute_streak_for_user
 
 bp = Blueprint("workouts", __name__, url_prefix="/workouts")
 
@@ -65,9 +67,29 @@ def _apply_pr(user_id: int, exercise_name: str, weight_lbs: float, reps: int) ->
 @login_required
 def log_workout():
     if request.method == "POST":
+        if request.form.get("rest_day") == "1":
+            w = Workout(
+                user_id=current_user.id,
+                exercise_name="Rest day",
+                weight_lbs=0,
+                reps=1,
+                logged_at=utcnow(),
+                caption=None,
+                photo_path=None,
+                is_pr_session=False,
+                is_rest_day=True,
+            )
+            db.session.add(w)
+            _update_streak_for_log(current_user.id)
+            db.session.commit()
+            emit_leaderboard_refresh(current_user.id)
+            flash("Rest day logged — streak preserved.", "success")
+            return redirect(url_for("social.feed"))
+
         exercise_name = (request.form.get("exercise_name") or "").strip()
         weight_raw = request.form.get("weight_lbs")
         reps_raw = request.form.get("reps")
+        caption = (request.form.get("caption") or "").strip() or None
 
         if not exercise_name:
             flash("Exercise name is required.", "error")
@@ -84,17 +106,24 @@ def log_workout():
             flash("Enter a non-negative weight and at least 1 rep.", "error")
             return render_template("log_workout.html")
 
+        photo = save_uploaded_image(request.files.get("photo"), f"w_{current_user.id}")
+
         workout = Workout(
             user_id=current_user.id,
             exercise_name=exercise_name,
             weight_lbs=weight_lbs,
             reps=reps,
             logged_at=utcnow(),
+            caption=caption,
+            photo_path=photo,
+            is_pr_session=False,
+            is_rest_day=False,
         )
         db.session.add(workout)
         db.session.flush()
 
         is_pr = _apply_pr(current_user.id, exercise_name, weight_lbs, reps)
+        workout.is_pr_session = bool(is_pr)
         _update_streak_for_log(current_user.id)
         db.session.commit()
 
@@ -102,7 +131,57 @@ def log_workout():
 
         if is_pr:
             return redirect(url_for("workouts.log_workout", new_pr=exercise_name))
-        flash("Workout logged.", "success")
-        return redirect(url_for("workouts.log_workout"))
+        flash("Workout posted.", "success")
+        return redirect(url_for("social.feed"))
 
     return render_template("log_workout.html")
+
+
+@bp.route("/<int:workout_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_workout(workout_id: int):
+    w = Workout.query.filter_by(id=workout_id, user_id=current_user.id).first()
+    if not w or w.is_rest_day:
+        abort(404)
+    if request.method == "POST":
+        exercise_name = (request.form.get("exercise_name") or "").strip()
+        try:
+            weight_lbs = float(request.form.get("weight_lbs") or "")
+            reps = int(request.form.get("reps") or "")
+        except (TypeError, ValueError):
+            flash("Invalid numbers.", "error")
+            return render_template("edit_workout.html", workout=w)
+        if not exercise_name or weight_lbs < 0 or reps < 1:
+            flash("Check exercise, weight, and reps.", "error")
+            return render_template("edit_workout.html", workout=w)
+        w.exercise_name = exercise_name
+        w.weight_lbs = weight_lbs
+        w.reps = reps
+        w.caption = (request.form.get("caption") or "").strip() or None
+        photo = save_uploaded_image(request.files.get("photo"), f"w_{current_user.id}")
+        if photo:
+            w.photo_path = photo
+        db.session.flush()
+        recalculate_prs_for_user(current_user.id)
+        recompute_streak_for_user(current_user.id)
+        db.session.commit()
+        emit_leaderboard_refresh(current_user.id)
+        flash("Workout updated.", "success")
+        return redirect(url_for("social.feed"))
+    return render_template("edit_workout.html", workout=w)
+
+
+@bp.post("/<int:workout_id>/delete")
+@login_required
+def delete_workout(workout_id: int):
+    w = Workout.query.filter_by(id=workout_id, user_id=current_user.id).first()
+    if not w:
+        abort(404)
+    db.session.delete(w)
+    db.session.flush()
+    recalculate_prs_for_user(current_user.id)
+    recompute_streak_for_user(current_user.id)
+    db.session.commit()
+    emit_leaderboard_refresh(current_user.id)
+    flash("Workout deleted.", "info")
+    return redirect(url_for("social.feed"))

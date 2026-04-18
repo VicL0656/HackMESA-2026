@@ -1,0 +1,7 @@
+# GymLink on Railway: set the service "Root Directory" to `gymlink` in the Railway dashboard.
+# Variables: SECRET_KEY (required). Optional: DATABASE_URL (Railway Postgres plugin).
+# Without Postgres, SQLite lives under Flask instance_path (lost on redeploy unless you add a volume).
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30

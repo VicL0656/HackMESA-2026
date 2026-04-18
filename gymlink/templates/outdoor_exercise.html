@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ kind|capitalize }} history · GymLink{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-2">
+    <div>
+      <h1 class="text-xl font-bold text-white">{{ kind|capitalize }}</h1>
+      <p class="mt-1 text-sm text-slate-400">Your sessions and best score over time.</p>
+    </div>
+    <a href="{{ url_for('outdoor.log_outdoor') }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Log session</a>
+  </div>
+
+  {% if rows %}
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+    <canvas id="outdoor-chart" height="200"></canvas>
+  </div>
+  {% endif %}
+
+  {% if not rows %}
+  <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
+    No {{ kind }} sessions yet. Log one from the feed shortcuts.
+  </div>
+  {% else %}
+  <div class="space-y-3">
+    {% for r in rows %}
+    <article class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg">
+      {% if r.photo_path %}
+      <img src="{{ r.photo_path }}" alt="" class="aspect-[16/9] w-full object-cover">
+      {% endif %}
+      <div class="p-4">
+        <p class="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">{{ r.posted_at.strftime('%b %d, %Y · %I:%M %p') }}</p>
+        <h2 class="mt-1 text-lg font-bold text-white">{{ r.title }}</h2>
+        {% if r.notes %}
+        <p class="mt-2 text-sm text-slate-300">{{ r.notes }}</p>
+        {% endif %}
+        <dl class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-2">
+            <dt class="text-[10px] uppercase text-slate-500">Score</dt>
+            <dd class="font-bold text-white">{{ "%.2f"|format(r.score) }}{% if r.score_label %} <span class="text-slate-400">{{ r.score_label }}</span>{% endif %}</dd>
+          </div>
+          {% if r.distance_miles %}
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-2">
+            <dt class="text-[10px] uppercase text-slate-500">Distance</dt>
+            <dd class="font-semibold text-slate-200">{{ "%.1f"|format(r.distance_miles) }} mi</dd>
+          </div>
+          {% endif %}
+          {% if r.duration_minutes %}
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-2">
+            <dt class="text-[10px] uppercase text-slate-500">Duration</dt>
+            <dd class="font-semibold text-slate-200">{{ "%.0f"|format(r.duration_minutes) }} min</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p class="text-center text-xs text-slate-500">
+    <a href="{{ url_for('social.feed') }}" class="font-semibold text-brand-500 hover:text-brand-400">Back to feed</a>
+  </p>
+</div>
+
+<script>
+  (function () {
+    const el = document.getElementById("outdoor-chart");
+    if (!el || typeof Chart === "undefined") return;
+    const labels = {{ chart_labels|tojson }};
+    const scores = {{ chart_scores|tojson }};
+    const best = {{ chart_best|tojson }};
+    new Chart(el, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Score",
+            data: scores,
+            borderColor: "rgb(56, 189, 248)",
+            backgroundColor: "rgba(56, 189, 248, 0.12)",
+            tension: 0.2,
+            fill: true,
+          },
+          {
+            label: "Best so far",
+            data: best,
+            borderColor: "rgb(250, 204, 21)",
+            borderDash: [4, 4],
+            tension: 0.15,
+            fill: false,
+            pointRadius: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#cbd5e1" } },
+        },
+        scales: {
+          x: { ticks: { color: "#94a3b8", maxRotation: 45 } },
+          y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.12)" } },
+        },
+      },
+    });
+  })();
+</script>
+{% endblock %}
