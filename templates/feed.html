@@ -4,8 +4,7 @@
 <meta id="gym-feed-page"
   data-feed-url="{{ url_for('gym.gym_feed_json') }}"
   data-checkin-url="{{ url_for('gym.checkin') }}"
-  data-checkout-url="{{ url_for('gym.checkout') }}"
-  data-script-root="{{ (request.script_root or '')|e }}">
+  data-checkout-url="{{ url_for('gym.checkout') }}">
 {% endblock %}
 {% block content %}
 <div class="space-y-6">
@@ -18,8 +17,12 @@
   </div>
 
   <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
-    <h2 class="text-sm font-bold text-white">At your gym</h2>
-    <p class="mt-1 text-xs text-slate-400">Everyone checked in to the <span class="font-semibold text-slate-200">same gym</span> as you right now (live list below).</p>
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-bold text-white">Gym floor</h2>
+        <p class="mt-1 text-xs text-slate-400">Check in to see who is training with you. We find tagged gyms and fitness centres within about <span class="font-semibold text-slate-300">25 miles</span> of your device location using <span class="font-semibold text-slate-300">OpenStreetMap</span> (your real GPS coordinates).</p>
+      </div>
+    </div>
     <div class="mt-4 flex flex-wrap gap-2">
       <button type="button" id="btn-checkin"
         class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500">
@@ -33,17 +36,18 @@
     <p id="geo-status" class="mt-3 text-xs text-slate-500"></p>
     <div id="gym-live" class="mt-4 hidden space-y-3">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-slate-200">Checked in · <span id="gym-name" class="text-white"></span></h3>
-        <span class="text-[10px] uppercase tracking-wide text-emerald-400/90">live</span>
+        <h3 class="text-sm font-semibold text-slate-200">Live at <span id="gym-name" class="text-white"></span></h3>
+        <span class="text-[10px] uppercase tracking-wide text-slate-500">live</span>
       </div>
       <ul id="gym-users" class="space-y-2"></ul>
     </div>
+    <p class="mt-2 text-[10px] leading-snug text-slate-600">Gym names and locations come from OpenStreetMap contributors (<a href="https://www.openstreetmap.org/copyright" class="text-brand-500 hover:text-brand-400" target="_blank" rel="noopener">license</a>).</p>
   </section>
 
   {% if suggested_friends %}
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-white">Suggested friends</h2>
-    <p class="mt-1 text-xs text-slate-500">Same home gym — add people you train near.</p>
+    <p class="mt-1 text-xs text-slate-500">Same home gym, not connected yet — by streak.</p>
     <ul class="mt-3 space-y-2">
       {% for u in suggested_friends %}
       <li class="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
@@ -65,10 +69,10 @@
   {% endif %}
 
   <section>
-    <h2 class="mb-3 text-sm font-semibold text-slate-200">Friends &amp; you</h2>
+    <h2 class="mb-3 text-sm font-semibold text-slate-200">Friends & you</h2>
     {% if not feed_items %}
     <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
-      Nothing in the feed yet. Log a lift or add gym friends.
+      Nothing in the feed yet. Log a lift or an outdoor session — or add gym friends to see their posts here.
     </div>
     {% else %}
     <div class="space-y-4">
@@ -89,13 +93,16 @@
               {% set sb = author|school_badge %}
               {% if sb %}<span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}
               <span class="font-mono text-xs text-brand-500/90">@{{ author.username }}</span>
+              {% if author.school %}
+              <span class="text-[10px] uppercase tracking-wide text-slate-500">{{ author.school }}</span>
+              {% endif %}
             </div>
             {% if kind == 'workout' %}
               {% if obj.is_rest_day %}
               <p class="mt-2 text-sm text-slate-300">Rest day — streak counted.</p>
               {% else %}
               {% if obj.is_pr_session %}
-              <span class="mt-1 inline-block rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">PR</span>
+              <span class="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">PR</span>
               {% endif %}
               <p class="mt-2 text-sm text-slate-100">
                 <span class="font-semibold text-white">{{ obj.exercise_name }}</span>
@@ -105,6 +112,7 @@
               {% if obj.caption %}
               <p class="mt-1 text-sm text-slate-300">{{ obj.caption }}</p>
               {% endif %}
+              {% endif %}
               <div class="mt-2 flex flex-wrap items-center gap-2">
                 <p class="text-[10px] text-slate-500">{{ obj.logged_at.strftime('%b %d · %I:%M %p') }}</p>
                 {% if author.id == current_user.id and not obj.is_rest_day %}
@@ -112,6 +120,10 @@
                 <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=obj.id) }}" class="inline" onsubmit="return confirm('Delete this post?');">
                   <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
                 </form>
+                {% if obj.is_pr_session %}
+                <button type="button" class="gymlink-share-pr text-[10px] font-semibold text-amber-300 hover:text-amber-200"
+                  data-weight="{{ obj.weight_lbs }}" data-exercise="{{ obj.exercise_name }}">Share PR</button>
+                {% endif %}
                 {% elif author.id == current_user.id and obj.is_rest_day %}
                 <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=obj.id) }}" class="inline" onsubmit="return confirm('Delete this rest day?');">
                   <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
@@ -121,7 +133,7 @@
             {% else %}
               <p class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">
                 {{ obj.kind }}
-                · <a href="{{ url_for('outdoor.exercise_history', kind=obj.kind) }}" class="text-brand-500 hover:text-brand-400">History</a>
+                · <a href="{{ url_for('outdoor.exercise_history', kind=obj.kind) }}" class="text-brand-500 hover:text-brand-400">Full history</a>
               </p>
               <p class="mt-1 text-sm font-semibold text-white">{{ obj.title }}</p>
               {% if obj.notes %}
@@ -130,6 +142,8 @@
               <p class="mt-2 text-sm text-slate-200">
                 Score <span class="font-bold text-white">{{ "%.2f"|format(obj.score) }}</span>
                 {% if obj.score_label %}<span class="text-slate-400">{{ obj.score_label }}</span>{% endif %}
+                {% if obj.distance_miles %}<span class="text-slate-500"> · {{ "%.1f"|format(obj.distance_miles) }} mi</span>{% endif %}
+                {% if obj.duration_minutes %}<span class="text-slate-500"> · {{ "%.0f"|format(obj.duration_minutes) }} min</span>{% endif %}
               </p>
               <p class="mt-2 text-[10px] text-slate-500">{{ obj.posted_at.strftime('%b %d · %I:%M %p') }}</p>
             {% endif %}
@@ -142,128 +156,4 @@
     {% endif %}
   </section>
 </div>
-
-<script>
-(function () {
-  function appUrl(path) {
-    var meta = document.getElementById("gym-feed-page");
-    var root = (meta && meta.dataset.scriptRoot) ? meta.dataset.scriptRoot.replace(/\/$/, "") : "";
-    var p = path.charAt(0) === "/" ? path : "/" + path;
-    return root + p;
-  }
-  function fmtDist(data) {
-    if (data && typeof data.distance_miles === "number") return data.distance_miles + " mi";
-    if (data && typeof data.distance_meters === "number") return Math.round(data.distance_meters) + " m";
-    return "";
-  }
-  function renderGymUsers(listEl, users) {
-    listEl.innerHTML = "";
-    if (!users.length) {
-      var li = document.createElement("li");
-      li.className = "rounded-xl border border-dashed border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-400";
-      li.textContent = "No other lifters checked in right now.";
-      listEl.appendChild(li);
-      return;
-    }
-    users.forEach(function (u) {
-      var li = document.createElement("li");
-      li.className = "flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2";
-      li.innerHTML =
-        '<img src="' + (u.photo_url || "").replace(/"/g, "&quot;") + '" alt="" class="h-9 w-9 rounded-full border border-slate-800 object-cover" />' +
-        '<div class="min-w-0 flex-1">' +
-        '<p class="truncate text-sm font-semibold text-white">' + (u.name || "") + "</p>" +
-        '<p class="truncate font-mono text-[11px] text-emerald-400/90">@' + (u.username || "user") + "</p>" +
-        '<p class="truncate text-xs text-slate-500">' + (u.workout_style || "Athlete") + "</p></div>";
-      listEl.appendChild(li);
-    });
-  }
-  async function refreshGymFeed(statusEl, liveWrap, nameEl, listEl, url) {
-    try {
-      var res = await fetch(url, { credentials: "same-origin" });
-      var ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (!ct.includes("application/json")) throw new Error("not json");
-      var data = await res.json();
-      if (!data.ok) throw new Error("bad");
-      if (!data.checked_in) {
-        liveWrap.classList.add("hidden");
-        return;
-      }
-      liveWrap.classList.remove("hidden");
-      nameEl.textContent = data.gym && data.gym.name ? data.gym.name : "Gym";
-      renderGymUsers(listEl, data.users || []);
-    } catch (e) {
-      if (statusEl) statusEl.textContent = "Could not refresh gym list.";
-    }
-  }
-  var meta = document.getElementById("gym-feed-page");
-  if (!meta) return;
-  var url = meta.dataset.feedUrl;
-  var checkinUrl = meta.dataset.checkinUrl || appUrl("/gym/checkin");
-  var checkoutUrl = meta.dataset.checkoutUrl || appUrl("/gym/checkout");
-  var statusEl = document.getElementById("geo-status");
-  var liveWrap = document.getElementById("gym-live");
-  var nameEl = document.getElementById("gym-name");
-  var listEl = document.getElementById("gym-users");
-  var btnIn = document.getElementById("btn-checkin");
-  var btnOut = document.getElementById("btn-checkout");
-  if (!url || !liveWrap || !nameEl || !listEl) return;
-  function tick() { refreshGymFeed(statusEl, liveWrap, nameEl, listEl, url); }
-  tick();
-  setInterval(tick, 8000);
-  btnIn && btnIn.addEventListener("click", function () {
-    if (!navigator.geolocation) {
-      if (statusEl) statusEl.textContent = "Geolocation not supported.";
-      return;
-    }
-    if (statusEl) statusEl.textContent = "Locating you…";
-    navigator.geolocation.getCurrentPosition(
-      async function (pos) {
-        try {
-          var res = await fetch(checkinUrl, {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-            }),
-          });
-          var ct = (res.headers.get("content-type") || "").toLowerCase();
-          var data = ct.includes("application/json") ? await res.json() : {};
-          if (!res.ok || !data.ok) {
-            var msg = (data && data.error) || "Check-in failed.";
-            if (statusEl) statusEl.textContent = msg;
-            return;
-          }
-          var dist = fmtDist(data);
-          if (statusEl) statusEl.textContent = dist ? "Checked in to " + data.gym.name + " (" + dist + ")." : "Checked in to " + data.gym.name + ".";
-          tick();
-        } catch (e) {
-          if (statusEl) statusEl.textContent = "Network error while checking in.";
-        }
-      },
-      function (err) {
-        if (statusEl) statusEl.textContent = "Location unavailable or denied.";
-      },
-      { enableHighAccuracy: false, timeout: 25000, maximumAge: 120000 }
-    );
-  });
-  btnOut && btnOut.addEventListener("click", async function () {
-    if (statusEl) statusEl.textContent = "Checking out…";
-    try {
-      var res = await fetch(checkoutUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" });
-      var ct = (res.headers.get("content-type") || "").toLowerCase();
-      var data = ct.includes("application/json") ? await res.json() : {};
-      if (!res.ok || !data.ok) {
-        if (statusEl) statusEl.textContent = "Checkout failed.";
-        return;
-      }
-      if (statusEl) statusEl.textContent = "Checked out.";
-      tick();
-    } catch (e) {
-      if (statusEl) statusEl.textContent = "Network error.";
-    }
-  });
-})();
-</script>
 {% endblock %}

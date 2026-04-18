@@ -1,23 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Profile · GymLink{% endblock %}
-{% block head %}
-{% if latest_weight %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-{% endif %}
-{% endblock %}
 {% block content %}
 <div class="space-y-5">
   <div class="flex items-center gap-4">
-    <img src="{{ current_user.photo_url }}" alt="" class="h-20 w-20 rounded-2xl border border-slate-800 bg-slate-900 object-cover shadow-lg">
+    <img src="{{ current_user.photo_url }}" alt="" class="h-16 w-16 rounded-2xl border border-slate-800 bg-slate-900 object-cover shadow-lg">
     <div class="min-w-0 flex-1">
       <h1 class="truncate text-xl font-bold text-white">{{ current_user.name }}</h1>
       <p class="truncate font-mono text-sm text-brand-500">@{{ current_user.username }}</p>
       {% set sb = current_user|school_badge %}
       {% if sb %}
-      <p class="mt-1"><span class="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200">{{ sb }}</span></p>
+      <p class="mt-0.5"><span class="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200">{{ sb }}</span></p>
       {% endif %}
       {% if streak %}
-      <p class="mt-2 text-sm font-bold text-white">
+      <p class="mt-1 text-sm font-semibold text-white">
         {{ streak.current_streak }} day streak <span aria-hidden="true">🔥</span>
       </p>
       {% endif %}
@@ -25,72 +20,63 @@
   </div>
 
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">Workout style</h2>
-    <p class="mt-1 text-sm text-white">{{ current_user.workout_style or 'Not set yet' }}</p>
-    <p class="mt-2 text-xs text-slate-500">Journal goals (signup)</p>
-    <p class="mt-1 whitespace-pre-wrap text-sm text-slate-300">{{ current_user.goals or '—' }}</p>
-  </section>
-
-  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-slate-200">Account</h2>
-    <p class="mt-1 text-xs text-slate-500">Training days, goal weight, and school email.</p>
-    <div class="mt-3 flex flex-wrap gap-2">
-      <a href="{{ url_for('account.settings') }}" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Settings</a>
-      <a href="{{ url_for('weights.weight_log') }}" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Body weight log</a>
-    </div>
+    <p class="mt-1 text-xs text-slate-500">Sign-in details and optional school email live only in Account settings — never on your public card, feed, or leaderboard.</p>
+    <a href="{{ url_for('account.settings') }}" class="mt-2 inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Account &amp; training days</a>
+    <a href="{{ url_for('weights.weight_log') }}" class="mt-2 ml-2 inline-flex rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:border-brand-500">Body weight log</a>
   </section>
-
-  {% if latest_weight %}
-  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <div class="flex items-center justify-between gap-2">
-      <h2 class="text-sm font-semibold text-slate-200">Weight log chart</h2>
-      <a href="{{ url_for('weights.weight_log') }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Full log</a>
-    </div>
-    <p class="mt-1 text-xs text-slate-500">Latest entry on file. Log more weights for a fuller trend.</p>
-    <div class="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 p-2">
-      <canvas id="profile-weight-spark" height="140" aria-label="Body weight chart"></canvas>
-    </div>
-  </section>
-  {% else %}
-  <section class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">Weight log chart</h2>
-    <p class="mt-1 text-sm text-slate-400">No body-weight entries yet.</p>
-    <a href="{{ url_for('weights.weight_log') }}" class="mt-2 inline-flex text-sm font-semibold text-brand-500 hover:text-brand-400">Open weight log</a>
-  </section>
-  {% endif %}
 
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-slate-200">Profile photo</h2>
+    <p class="mt-1 text-xs text-slate-500">Upload a real picture (JPG/PNG/WEBP, up to about 25MB).</p>
     <form method="post" action="{{ url_for('social.profile_photo') }}" enctype="multipart/form-data" class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
       <input type="file" name="photo" accept="image/*" required
         class="block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
-      <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save</button>
+      <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save photo</button>
     </form>
   </section>
 
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">School &amp; split</h2>
+    <h2 class="text-sm font-semibold text-slate-200">Add friends with QR</h2>
+    <p class="mt-1 text-xs text-slate-500">Friends scan this code with their phone camera to open your connect page.</p>
+    <div class="mt-3 flex flex-col items-center gap-2">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={{ qr_data }}" width="220" height="220" alt="QR code to add {{ current_user.username }}" class="rounded-xl border border-slate-700 bg-white p-2">
+      <p class="break-all text-center text-[10px] text-slate-500">{{ friend_connect_url }}</p>
+    </div>
+  </section>
+
+  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="text-sm font-semibold text-slate-200">School & split</h2>
+    <p class="mt-1 text-xs text-slate-500">Meet classmates and keep your training week visible on your profile card in the feed.</p>
     <form method="post" action="{{ url_for('social.profile_update') }}" class="mt-3 space-y-3">
       <div>
-        <label class="block text-xs font-medium text-slate-400" for="school">School</label>
-        <input id="school" name="school" maxlength="200" value="{{ current_user.school or '' }}"
-          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
+        <label class="block text-xs font-medium text-slate-400" for="school">School / affiliation</label>
+        <div class="relative z-[200] mt-1" data-school-autocomplete-root>
+          <input id="school" name="school" maxlength="200" value="{{ current_user.school or '' }}" placeholder="Type to search U.S. colleges…"
+            autocomplete="off" data-school-autocomplete
+            class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+          <ul data-school-suggestions class="absolute left-0 right-0 top-full z-[200] mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 py-1 text-left shadow-xl hidden" role="listbox" aria-label="School suggestions"></ul>
+        </div>
+        <p class="mt-1 text-[10px] leading-snug text-slate-600">
+          Official list: NCES IPEDS (public, private nonprofit, for-profit; four-year, two-year, and career and technical campuses). GymLink is not affiliated with NCES.
+        </p>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-400" for="workout_split">Workout split</label>
-        <textarea id="workout_split" name="workout_split" rows="3" maxlength="4000"
-          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">{{ current_user.workout_split or '' }}</textarea>
+        <label class="block text-xs font-medium text-slate-400" for="workout_split">Current workout split</label>
+        <textarea id="workout_split" name="workout_split" rows="4" maxlength="4000" placeholder="Mon: Upper · Tue: Lower · Wed: Cardio…"
+          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">{{ current_user.workout_split or '' }}</textarea>
       </div>
-      <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Save profile</button>
+      <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Save</button>
     </form>
   </section>
 
   <section id="add-friend" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
     <h2 class="text-sm font-semibold text-slate-200">Add gym friend</h2>
+    <p class="mt-1 text-xs text-slate-500">Enter their @username (or the sign-in address they use for GymLink — only you type it here). They accept on their profile, or you connect instantly if they already sent you a request.</p>
     <form method="post" action="{{ url_for('social.friends_add') }}" class="mt-3 flex flex-col gap-2 sm:flex-row">
-      <input name="friend_handle" type="text" required autocomplete="off" placeholder="@username"
-        class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
-      <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send</button>
+      <input name="friend_handle" type="text" required autocomplete="off" placeholder="@their_handle"
+        class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send request</button>
     </form>
   </section>
 
@@ -101,7 +87,7 @@
       {% for fr, sender in incoming_rows %}
       {% if sender %}
       <li class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex min-w-0 items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0">
           <img src="{{ sender.photo_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-slate-800 object-cover">
           <div class="min-w-0">
             <p class="truncate font-semibold text-white">{{ sender.name }}</p>
@@ -113,11 +99,66 @@
             <button type="submit" class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-500">Accept</button>
           </form>
           <form method="post" action="{{ url_for('social.friend_request_decline', request_id=fr.id) }}">
-            <button type="submit" class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-rose-500">Decline</button>
+            <button type="submit" class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-rose-500 hover:text-rose-100">Decline</button>
           </form>
         </div>
       </li>
       {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if outgoing_rows %}
+  <section class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+    <h2 class="text-sm font-semibold text-slate-200">Sent requests</h2>
+    <ul class="mt-2 space-y-2 text-sm text-slate-400">
+      {% for fr, target in outgoing_rows %}
+      {% if target %}
+      <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-800/80 bg-slate-950/40 px-3 py-2">
+        <span class="truncate text-slate-200">Waiting on <span class="font-semibold text-white">{{ target.name }}</span> <span class="font-mono text-brand-500/80">@{{ target.username }}</span></span>
+        <span class="shrink-0 text-[10px] uppercase tracking-wide text-slate-500">Pending</span>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if latest_weight or current_user.goal_weight_lbs %}
+  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="text-sm font-semibold text-slate-200">Weight</h2>
+    <p class="mt-1 text-xs text-slate-500">Latest entry from your body-weight log plus goal from Account settings. Visibility on each log controls how it could be shared if we add public profiles later.</p>
+    <div class="mt-2 flex flex-wrap gap-4 text-sm">
+      {% if latest_weight %}
+      <p><span class="text-slate-500">Current:</span> <span class="font-bold text-white">{{ "%.1f"|format(latest_weight.weight_lbs) }} lb</span></p>
+      {% endif %}
+      {% if current_user.goal_weight_lbs %}
+      <p><span class="text-slate-500">Goal:</span> <span class="font-bold text-white">{{ "%.1f"|format(current_user.goal_weight_lbs) }} lb</span></p>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if suggested_friends %}
+  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="text-sm font-semibold text-slate-200">Suggested friends</h2>
+    <p class="mt-1 text-xs text-slate-500">Same home gym as you, not connected yet (by streak).</p>
+    <ul class="mt-3 space-y-2">
+      {% for u in suggested_friends %}
+      <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <img src="{{ u.photo_url }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-slate-800 object-cover">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
+            <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ u.username }}</p>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('social.friends_add') }}" class="shrink-0">
+          <input type="hidden" name="friend_handle" value="{{ u.username }}">
+          <button type="submit" class="rounded-lg bg-brand-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-brand-500">Add</button>
+        </form>
+      </li>
       {% endfor %}
     </ul>
   </section>
@@ -128,19 +169,19 @@
     {% if not goals %}
     <p class="mt-1 text-xs text-slate-500">Add measurable goals below.</p>
     {% else %}
-    <ul class="mt-3 space-y-4">
+    <ul class="mt-3 space-y-3">
       {% for g in goals %}
       <li class="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="font-semibold text-white {% if g.completed %}line-through opacity-60{% endif %}">{{ g.title }}</p>
-            <p class="text-[11px] text-slate-500">{{ g.current_value }} / {{ g.target_value }} {{ g.unit }}</p>
+            <p class="text-[11px] text-slate-500">{{ g.current_value }} / {{ g.target_value }} {{ g.unit }}{% if g.deadline %} · due {{ g.deadline.isoformat() }}{% endif %}</p>
           </div>
           <div class="flex shrink-0 gap-1">
             <form method="post" action="{{ url_for('social.goal_toggle', goal_id=g.id) }}">
               <button type="submit" class="rounded border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">Done</button>
             </form>
-            <form method="post" action="{{ url_for('social.goal_delete', goal_id=g.id) }}" onsubmit="return confirm('Remove?');">
+            <form method="post" action="{{ url_for('social.goal_delete', goal_id=g.id) }}" onsubmit="return confirm('Remove goal?');">
               <button type="submit" class="rounded border border-rose-900/50 px-2 py-0.5 text-[10px] text-rose-200">Del</button>
             </form>
           </div>
@@ -148,10 +189,10 @@
         {% set barp = ((g.current_value / g.target_value * 100) if g.target_value else 0) %}
         {% set barw = 0 if barp < 0 else (100 if barp > 100 else (barp|round(1))) %}
         <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-          <div class="h-full rounded-full bg-brand-500 transition-all" style="width: {{ barw }}%"></div>
+          <div class="h-full rounded-full bg-brand-500" style="width: {{ barw }}%"></div>
         </div>
         <form method="post" action="{{ url_for('social.goal_update', goal_id=g.id) }}" class="mt-2 flex gap-2">
-          <input name="current_value" type="number" step="any" value="{{ g.current_value }}" class="w-28 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white">
+          <input name="current_value" type="number" step="any" value="{{ g.current_value }}" class="w-24 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white">
           <button type="submit" class="rounded bg-slate-800 px-2 py-1 text-[10px] font-semibold text-white">Update</button>
         </form>
       </li>
@@ -164,84 +205,52 @@
         <input name="target_value" type="number" step="any" required placeholder="Target" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white">
         <input name="current_value" type="number" step="any" value="0" placeholder="Current" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white">
       </div>
-      <input name="unit" maxlength="40" placeholder="Unit" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white">
+      <input name="unit" maxlength="40" placeholder="Unit (e.g. lb, sessions)" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white">
+      <input name="deadline" type="date" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white">
       <button type="submit" class="w-full rounded-lg bg-brand-600 py-2 text-xs font-semibold text-white">Add goal</button>
     </form>
   </section>
 
-  {% if suggested_friends %}
-  <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">Suggested friends</h2>
-    <ul class="mt-3 space-y-2">
-      {% for u in suggested_friends %}
-      <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
-        <div class="flex min-w-0 items-center gap-2">
-          <img src="{{ u.photo_url }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-slate-800 object-cover">
-          <div class="min-w-0">
-            <p class="truncate text-sm font-semibold text-white">{{ u.name }}</p>
-            <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ u.username }}</p>
-          </div>
-        </div>
-        <form method="post" action="{{ url_for('social.friends_add') }}">
-          <input type="hidden" name="friend_handle" value="{{ u.username }}">
-          <button type="submit" class="rounded-lg bg-brand-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-brand-500">Add</button>
-        </form>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-
-  <section>
-    <div class="mb-2 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-slate-200">Personal records</h2>
-      <a href="{{ url_for('workouts.log_workout') }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Log workout</a>
+  <div class="grid grid-cols-1 gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:grid-cols-2">
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">School</p>
+      <p class="mt-1 text-sm text-white">{{ current_user.school or 'Not set' }}</p>
     </div>
-    {% if not prs %}
-    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">No PRs yet.</div>
-    {% else %}
-    <div class="overflow-hidden rounded-xl border border-slate-800">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-slate-900 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th class="px-3 py-2">Exercise</th>
-            <th class="px-3 py-2">Weight</th>
-            <th class="px-3 py-2">Reps</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800 bg-slate-950/40">
-          {% for pr in prs %}
-          <tr>
-            <td class="px-3 py-2 font-medium text-white">{{ pr.exercise_name }}</td>
-            <td class="px-3 py-2 text-slate-200">{{ "%.1f"|format(pr.best_weight_lbs) }} lb</td>
-            <td class="px-3 py-2 text-slate-300">{{ pr.best_reps }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="sm:col-span-2">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Workout split</p>
+      <p class="mt-1 whitespace-pre-wrap text-sm text-slate-200">{{ current_user.workout_split or 'Add your weekly split in the form above.' }}</p>
     </div>
-    {% endif %}
-  </section>
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">Workout style</p>
+      <p class="mt-1 text-sm text-white">{{ current_user.workout_style or 'Not set' }}</p>
+    </div>
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">Goals</p>
+      <p class="mt-1 text-sm text-slate-200">{{ current_user.goals or 'Add goals from your training journal.' }}</p>
+    </div>
+  </div>
 
   {% if recent_workouts %}
   <section class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="text-sm font-semibold text-slate-200">Recent workouts</h2>
+    <h2 class="text-sm font-semibold text-slate-200">Recent logged workouts</h2>
     <ul class="mt-3 space-y-2">
       {% for w in recent_workouts %}
       <li class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0 text-sm">
           {% if w.is_rest_day %}
           <p class="font-medium text-slate-300">Rest day</p>
+          <p class="text-[10px] text-slate-500">{{ w.logged_at.strftime('%b %d · %I:%M %p') }}</p>
           {% else %}
           <p class="font-semibold text-white">{{ w.exercise_name }}</p>
           <p class="text-xs text-slate-400">{{ "%.1f"|format(w.weight_lbs) }} lb × {{ w.reps }}{% if w.is_pr_session %} · <span class="text-amber-400">PR</span>{% endif %}</p>
+          <p class="text-[10px] text-slate-500">{{ w.logged_at.strftime('%b %d · %I:%M %p') }}</p>
           {% endif %}
         </div>
-        <div class="flex shrink-0 gap-2">
+        <div class="flex shrink-0 flex-wrap gap-2">
           {% if not w.is_rest_day %}
           <a href="{{ url_for('workouts.edit_workout', workout_id=w.id) }}" class="text-[10px] font-semibold text-sky-400 hover:text-sky-300">Edit</a>
           {% endif %}
-          <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=w.id) }}" onsubmit="return confirm('Delete?');">
+          <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=w.id) }}" onsubmit="return confirm('Delete this entry from your log?');">
             <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Delete</button>
           </form>
         </div>
@@ -251,25 +260,67 @@
   </section>
   {% endif %}
 
-  <section>
+  <div>
+    <div class="mb-2 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-200">Personal records</h2>
+      <a href="{{ url_for('workouts.log_workout') }}" class="text-xs font-semibold text-brand-500 hover:text-brand-400">Log workout</a>
+    </div>
+    {% if not prs %}
+    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+      No PRs yet. Log a lift to start your trophy case.
+    </div>
+    {% else %}
+    <div class="overflow-hidden rounded-xl border border-slate-800">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-900 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-3 py-2">Exercise</th>
+            <th class="px-3 py-2">Weight</th>
+            <th class="px-3 py-2">Reps</th>
+            <th class="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 bg-slate-950/40">
+          {% for pr in prs %}
+          <tr>
+            <td class="px-3 py-2 font-medium text-white">{{ pr.exercise_name }}</td>
+            <td class="px-3 py-2 text-slate-200">{{ "%.1f"|format(pr.best_weight_lbs) }} lb</td>
+            <td class="px-3 py-2 text-slate-300">{{ pr.best_reps }}</td>
+            <td class="px-3 py-2">
+              <button type="button" class="gymlink-share-pr rounded border border-slate-600 px-2 py-0.5 text-[10px] font-semibold text-slate-300 hover:border-brand-500"
+                data-weight="{{ pr.best_weight_lbs }}" data-exercise="{{ pr.exercise_name }}">Share</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
     <h2 class="mb-2 text-sm font-semibold text-slate-200">Gym friends</h2>
     {% if not match_rows %}
-    <p class="text-sm text-slate-400">No matches yet. Try <a href="{{ url_for('social.swipe') }}" class="font-semibold text-brand-500 hover:text-brand-400">swipes</a>.</p>
+    <div class="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+      No gym friends yet. Add someone with their @handle above, or use <a href="{{ url_for('social.swipe') }}" class="font-semibold text-brand-500 hover:text-brand-400">Find lifters</a> to swipe.
+    </div>
     {% else %}
     <ul class="space-y-2">
       {% for m, buddy in match_rows %}
       {% if buddy %}
       <li class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
-        <div class="flex min-w-0 items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0">
           <img src="{{ buddy.photo_url }}" alt="" class="h-9 w-9 rounded-full border border-slate-800 object-cover">
           <div class="min-w-0">
             <p class="truncate font-semibold text-white">{{ buddy.name }}</p>
             <p class="truncate font-mono text-[11px] text-brand-500/80">@{{ buddy.username }}</p>
+            <p class="truncate text-xs text-slate-500">{{ buddy.workout_style or 'Athlete' }}</p>
           </div>
         </div>
-        <div class="flex shrink-0 flex-col items-end gap-1">
-          <a href="{{ url_for('social.match_thread', match_id=m.id) }}" class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 hover:border-brand-500">Chat</a>
-          <form method="post" action="{{ url_for('social.friends_remove', other_id=buddy.id) }}" onsubmit="return confirm('Unfriend?');">
+        <div class="flex shrink-0 flex-col gap-1 items-end">
+          <a href="{{ url_for('social.match_thread', match_id=m.id) }}"
+            class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 hover:border-brand-500 hover:text-white">Chat</a>
+          <form method="post" action="{{ url_for('social.friends_remove', other_id=buddy.id) }}" onsubmit="return confirm('Remove this gym friend?');">
             <button type="submit" class="text-[10px] font-semibold text-rose-400 hover:text-rose-300">Unfriend</button>
           </form>
         </div>
@@ -278,43 +329,11 @@
       {% endfor %}
     </ul>
     {% endif %}
-  </section>
-</div>
+  </div>
 
-{% if latest_weight %}
-{% set _pw_labels = [latest_weight.logged_at.date().isoformat()] %}
-{% set _pw_data = [latest_weight.weight_lbs + 0] %}
-<script>
-  (function () {
-    var el = document.getElementById("profile-weight-spark");
-    if (!el || typeof Chart === "undefined") return;
-    var labels = {{ _pw_labels|tojson }};
-    var data = {{ _pw_data|tojson }};
-    new Chart(el, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [{
-          label: "lb",
-          data: data,
-          borderColor: "rgb(34, 197, 94)",
-          backgroundColor: "rgba(34, 197, 94, 0.2)",
-          tension: 0.3,
-          fill: true,
-          pointRadius: 6,
-          pointBackgroundColor: "rgb(34, 197, 94)",
-        }],
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: "#94a3b8", maxRotation: 0 }, grid: { color: "rgba(148,163,184,0.1)" } },
-          y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.1)" } },
-        },
-      },
-    });
-  })();
-</script>
-{% endif %}
+  <div class="flex flex-wrap gap-2 text-xs">
+    <a href="{{ url_for('social.swipe') }}" class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-semibold text-slate-200 hover:border-brand-500">Swipe lifters</a>
+    <a href="{{ url_for('leaderboard.home') }}" class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-semibold text-slate-200 hover:border-brand-500">Leaderboard</a>
+  </div>
+</div>
 {% endblock %}
