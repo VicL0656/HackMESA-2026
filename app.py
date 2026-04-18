@@ -2,13 +2,24 @@ import os
 from datetime import date, timedelta
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, redirect, request, send_from_directory, url_for
-from flask_login import current_user, login_required
+from flask import Flask, abort, flash, jsonify, redirect, request, send_from_directory, url_for
+from flask_login import current_user, login_required, login_user
 from flask_socketio import disconnect, join_room
 
 from extensions import bcrypt, db, login_manager, socketio
 
 _METERS_PER_MILE = 1609.344
+
+
+def _demo_login_allowed(app: Flask) -> bool:
+    """Passwordless /demo is off in production unless GYMLINK_ENABLE_DEMO_LOGIN is set."""
+    if os.environ.get("GYMLINK_ENABLE_DEMO_LOGIN", "").lower() in ("1", "true", "yes"):
+        return True
+    if app.debug:
+        return True
+    if os.environ.get("RAILWAY_PUBLIC_DOMAIN") or os.environ.get("RAILWAY_ENVIRONMENT") == "production":
+        return False
+    return True
 
 
 def _gym_checkin_max_meters() -> float:
@@ -143,6 +154,25 @@ def create_app():
     @app.route("/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/demo")
+    def demo_login():
+        """One-click sign-in as the seeded demo user (local / explicit env only)."""
+        if not _demo_login_allowed(app):
+            abort(404)
+        from models import User
+
+        raw = (os.environ.get("GYMLINK_DEMO_USERNAME") or "jordan_blake").strip().lower()
+        user = User.query.filter_by(username=raw).first()
+        if not user:
+            flash(
+                "Demo user not found. Run `python seed.py` or set GYMLINK_DEMO_USERNAME to an existing username.",
+                "error",
+            )
+            return redirect(url_for("auth.login"))
+        login_user(user, remember=True)
+        flash("Signed in as demo lifter — explore the leaderboard.", "info")
+        return redirect(url_for("leaderboard.home"))
 
     @app.get("/")
     def root():
