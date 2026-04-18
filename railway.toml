@@ -2,6 +2,10 @@
 # Variables: SECRET_KEY (required). Optional: DATABASE_URL (Railway Postgres plugin).
 # Without Postgres, SQLite lives under Flask instance_path (lost on redeploy unless you add a volume).
 
+[build]
+builder = "nixpacks"
+
 [deploy]
+startCommand = "gunicorn -w 1 -k gevent -b 0.0.0.0:$PORT app:app"
 healthcheckPath = "/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 60

@@ -274,6 +274,9 @@ def socket_connect():
     join_room(f"user_{uid}")
     return True
 
+@app.route('/health')
+def health():
+    return 'ok', 200
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
