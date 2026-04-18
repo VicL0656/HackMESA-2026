@@ -107,15 +107,25 @@
               {% endif %}
               <p class="mt-2 text-sm text-slate-100">
                 <span class="font-semibold text-white">{{ obj.exercise_name }}</span>
+                {% if obj.weight_lbs and obj.weight_lbs > 0 %}
                 <span class="text-slate-400">·</span>
                 {{ "%.1f"|format(obj.weight_lbs) }} lb × {{ obj.reps }}
+                {% elif obj.reps and obj.reps > 1 %}
+                <span class="text-slate-400">·</span>
+                {{ obj.reps }} reps
+                {% endif %}
+                {% if obj.num_sets %}<span class="text-slate-500"> · {{ obj.num_sets }} sets</span>{% endif %}
+                {% if obj.duration_seconds %}<span class="text-slate-500"> · {{ obj.duration_seconds }}s</span>{% endif %}
               </p>
+              {% if obj.exercise_note %}
+              <p class="mt-1 text-xs text-slate-400">{{ obj.exercise_note }}</p>
+              {% endif %}
               {% if obj.caption %}
               <p class="mt-1 text-sm text-slate-300">{{ obj.caption }}</p>
               {% endif %}
               {% endif %}
-              <div class="mt-2 flex flex-wrap items-center gap-2">
-                <p class="text-[10px] text-slate-500">{{ obj.logged_at.strftime('%b %d · %I:%M %p') }}</p>
+              <div class="mt-2 flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                <p class="mr-auto text-[10px] text-slate-500">{{ obj.logged_at.strftime('%b %d · %I:%M %p') }}</p>
                 {% if author.id == current_user.id and not obj.is_rest_day %}
                 <a href="{{ url_for('workouts.edit_workout', workout_id=obj.id) }}" class="text-[10px] font-semibold text-sky-400 hover:text-sky-300">Edit</a>
                 <form method="post" action="{{ url_for('workouts.delete_workout', workout_id=obj.id) }}" class="inline" onsubmit="return confirm('Delete this post?');">

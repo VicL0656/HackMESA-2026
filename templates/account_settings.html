@@ -63,23 +63,27 @@
 
   <section id="home-gym" class="scroll-mt-4 space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
     <h2 class="text-sm font-semibold text-white">Home gym</h2>
-    <p class="text-xs text-slate-500">Search by city or neighborhood (OpenStreetMap). Pick a result to set your main gym, or add one manually if yours is missing.</p>
-    <div class="flex flex-col gap-2 sm:flex-row">
-      <input id="gym-city-query" type="text" placeholder="e.g. Austin TX, Brooklyn NY"
-        class="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
-      <button type="button" id="gym-search-btn" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Search</button>
+    <p class="text-xs text-slate-500">Pick a U.S. city from suggestions (OpenStreetMap search), then find nearby gyms. You can still type a city freehand and search if you do not use the list. Add a missing gym by name and street; we locate it from the address — no coordinates needed.</p>
+    <div class="relative min-w-0 flex-1 sm:flex sm:items-start sm:gap-2">
+      <div class="relative min-w-0 flex-1">
+        <input id="gym-city-query" type="text" placeholder="Start typing a city (e.g. Austin, TX)"
+          autocomplete="off"
+          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
+        <input type="hidden" id="gym-search-lat" value="">
+        <input type="hidden" id="gym-search-lon" value="">
+        <div id="city-ac-panel" class="absolute z-30 mt-1 hidden max-h-52 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 py-1 shadow-lg"></div>
+      </div>
+      <button type="button" id="gym-search-btn" class="mt-2 w-full rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 sm:mt-0 sm:w-auto sm:shrink-0">Search gyms</button>
     </div>
     <p id="gym-search-status" class="text-xs text-slate-500"></p>
     <ul id="gym-search-results" class="max-h-60 space-y-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/50 p-2"></ul>
 
     <div class="border-t border-slate-800 pt-4">
       <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Manual entry</h3>
-      <p class="mt-1 text-[11px] text-slate-500">If your gym does not appear, add it and select it as home.</p>
+      <p class="mt-1 text-[11px] text-slate-500">Gym name plus city and state in the address line so we can place it on the map.</p>
       <div class="mt-2 grid gap-2 sm:grid-cols-2">
         <input id="manual-name" type="text" placeholder="Gym name" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-        <input id="manual-address" type="text" placeholder="Address" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-        <input id="manual-lat" type="text" inputmode="decimal" placeholder="Latitude" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
-        <input id="manual-lng" type="text" inputmode="decimal" placeholder="Longitude" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
+        <input id="manual-address" type="text" placeholder="Street, city, state" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
       </div>
       <button type="button" id="gym-manual-btn" class="mt-2 rounded-xl border border-slate-600 bg-slate-950 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-brand-500">Save manual gym</button>
     </div>
@@ -123,6 +127,21 @@
           {% endfor %}
         </div>
       </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400" for="reminder_hour">Workout reminder (hour, 24h)</label>
+          <input id="reminder_hour" name="reminder_hour" type="number" min="0" max="23" required
+            value="{{ current_user.reminder_hour|default(8) }}"
+            class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400" for="reminder_minute">Minute</label>
+          <input id="reminder_minute" name="reminder_minute" type="number" min="0" max="59" required
+            value="{{ current_user.reminder_minute|default(0) }}"
+            class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500">
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-500">Default is 8:00 on the days you checked above. Browser notifications must be allowed on a device that supports them.</p>
       <div>
         <label class="block text-xs font-medium text-slate-400" for="goal_weight_lbs">Goal body weight (lb, optional)</label>
         <input id="goal_weight_lbs" name="goal_weight_lbs" type="number" step="0.1" inputmode="decimal"
@@ -162,6 +181,22 @@
           <span class="mt-0.5 block text-[11px] text-slate-500">Uses the lift your friend has selected when sorting by PR on Home.</span>
         </span>
       </label>
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <input type="checkbox" name="public_weight_chart" value="1" class="mt-1 rounded border-slate-600 text-brand-500"
+          {% if current_user.public_weight_chart %}checked{% endif %}>
+        <span>
+          <span class="text-sm font-medium text-slate-200">Weight progress chart</span>
+          <span class="mt-0.5 block text-[11px] text-slate-500">Controls whether gym friends may see your body-weight trend outside your own screen. Off by default.</span>
+        </span>
+      </label>
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <input type="checkbox" name="public_workout_progress" value="1" class="mt-1 rounded border-slate-600 text-brand-500"
+          {% if current_user.public_workout_progress %}checked{% endif %}>
+        <span>
+          <span class="text-sm font-medium text-slate-200">Lift progress charts</span>
+          <span class="mt-0.5 block text-[11px] text-slate-500">Same for lift weight over time from logs. Off by default.</span>
+        </span>
+      </label>
       <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">Save privacy</button>
     </form>
   </section>
@@ -196,14 +231,109 @@
 <script>
 (function () {
   var searchUrl = {{ url_for('account.api_gym_search')|tojson }};
+  var cityUrl = {{ url_for('account.api_city_search')|tojson }};
   var pickUrl = {{ url_for('account.api_gym_pick')|tojson }};
   var manualUrl = {{ url_for('account.api_gym_manual')|tojson }};
   function el(id) { return document.getElementById(id); }
   function setStatus(t) { var s = el("gym-search-status"); if (s) s.textContent = t || ""; }
   function clearResults() { var u = el("gym-search-results"); if (u) u.innerHTML = ""; }
+  var cityTimer = null;
+  var cityPinnedLabel = "";
+
+  function hideCityPanel() {
+    var p = el("city-ac-panel");
+    if (!p) return;
+    p.classList.add("hidden");
+    p.innerHTML = "";
+  }
+
+  function clearCityPick() {
+    var la = el("gym-search-lat");
+    var lo = el("gym-search-lon");
+    if (la) la.value = "";
+    if (lo) lo.value = "";
+    cityPinnedLabel = "";
+  }
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  var cityIn = el("gym-city-query");
+  var cityPanel = el("city-ac-panel");
+  if (cityIn && cityPanel) {
+    cityIn.addEventListener("input", function () {
+      var q = (cityIn.value || "").trim();
+      if (cityTimer) clearTimeout(cityTimer);
+      if (q.length < 2) {
+        hideCityPanel();
+        clearCityPick();
+        return;
+      }
+      if (cityPinnedLabel && q !== cityPinnedLabel) clearCityPick();
+      cityTimer = setTimeout(async function () {
+        try {
+          var res = await fetch(cityUrl, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: q }),
+          });
+          var data = await res.json();
+          if (!data.ok || !data.places || !data.places.length) {
+            hideCityPanel();
+            return;
+          }
+          cityPanel.innerHTML = "";
+          data.places.forEach(function (pl) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "block w-full px-3 py-2 text-left text-sm text-white hover:bg-slate-800";
+            btn.innerHTML = "<span class=\"font-medium\">" + escapeHtml(pl.label) + "</span><span class=\"mt-0.5 block text-[10px] text-slate-500\">" + escapeHtml(pl.display) + "</span>";
+            btn.addEventListener("click", function () {
+              cityIn.value = pl.label || "";
+              cityPinnedLabel = cityIn.value;
+              var la = el("gym-search-lat");
+              var lo = el("gym-search-lon");
+              if (la) la.value = String(pl.latitude);
+              if (lo) lo.value = String(pl.longitude);
+              hideCityPanel();
+            });
+            cityPanel.appendChild(btn);
+          });
+          cityPanel.classList.remove("hidden");
+        } catch (e) {
+          hideCityPanel();
+        }
+      }, 280);
+    });
+    cityIn.addEventListener("blur", function () {
+      setTimeout(hideCityPanel, 200);
+    });
+  }
+
   el("gym-search-btn") && el("gym-search-btn").addEventListener("click", async function () {
     var q = (el("gym-city-query") && el("gym-city-query").value || "").trim();
-    if (q.length < 2) { setStatus("Type at least two characters."); return; }
+    var la = el("gym-search-lat");
+    var lo = el("gym-search-lon");
+    var latStr = la && la.value ? la.value.trim() : "";
+    var lonStr = lo && lo.value ? lo.value.trim() : "";
+    var body;
+    if (latStr && lonStr) {
+      var lat = parseFloat(latStr);
+      var lon = parseFloat(lonStr);
+      if (!isFinite(lat) || !isFinite(lon)) {
+        setStatus("Pick a city from the list again.");
+        return;
+      }
+      body = { latitude: lat, longitude: lon, query: q || "gyms" };
+    } else {
+      if (q.length < 2) { setStatus("Type a city or pick one from suggestions."); return; }
+      body = { query: q };
+    }
     setStatus("Searching…");
     clearResults();
     try {
@@ -211,7 +341,7 @@
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify(body),
       });
       var data = await res.json();
       if (!data.ok) { setStatus(data.error || "Search failed."); return; }
@@ -223,12 +353,12 @@
         li.innerHTML = "<p class=\"font-semibold\">" + (g.name || "") + "</p><p class=\"text-[11px] text-slate-500\">" + (g.address || "") + " · ~" + Math.round(g.distance_m) + " m</p>";
         li.addEventListener("click", async function () {
           setStatus("Saving…");
-          var body = g.id ? { gym_id: g.id } : { entry: g };
+          var pickBody = g.id ? { gym_id: g.id } : { entry: g };
           var r2 = await fetch(pickUrl, {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
+            body: JSON.stringify(pickBody),
           });
           var d2 = await r2.json();
           if (!d2.ok) { setStatus(d2.error || "Could not save."); return; }
@@ -245,11 +375,9 @@
     var payload = {
       name: el("manual-name").value.trim(),
       address: el("manual-address").value.trim(),
-      latitude: parseFloat(el("manual-lat").value),
-      longitude: parseFloat(el("manual-lng").value),
     };
-    if (!payload.name) { setStatus("Name required."); return; }
-    if (!isFinite(payload.latitude) || !isFinite(payload.longitude)) { setStatus("Valid lat/lng required."); return; }
+    if (!payload.name) { setStatus("Gym name required."); return; }
+    if (!payload.address) { setStatus("Include street, city, and state in the address."); return; }
     setStatus("Saving…");
     try {
       var res = await fetch(manualUrl, {

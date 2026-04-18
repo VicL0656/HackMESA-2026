@@ -8,6 +8,7 @@ from models import PersonalRecord, Streak, Workout
 from models import utcnow
 from realtime import emit_leaderboard_refresh
 from uploads_util import file_was_chosen, save_uploaded_image
+from split_presets import today_plan
 from workout_helpers import recalculate_prs_for_user, recompute_streak_for_user
 
 bp = Blueprint("workouts", __name__, url_prefix="/workouts")
@@ -63,6 +64,11 @@ def _apply_pr(user_id: int, exercise_name: str, weight_lbs: float, reps: int) ->
     return False
 
 
+def _log_page_ctx():
+    wd = date.today().weekday()
+    return {"split_plan": today_plan(current_user.workout_split, wd), "split_weekday": wd}
+
+
 @bp.route("/log", methods=["GET", "POST"])
 @login_required
 def log_workout():
@@ -87,24 +93,35 @@ def log_workout():
             return redirect(url_for("social.feed"))
 
         exercise_name = (request.form.get("exercise_name") or "").strip()
-        weight_raw = request.form.get("weight_lbs")
-        reps_raw = request.form.get("reps")
+        weight_raw = (request.form.get("weight_lbs") or "").strip()
+        reps_raw = (request.form.get("reps") or "").strip()
         caption = (request.form.get("caption") or "").strip() or None
+        manual_other = request.form.get("manual_other") == "1"
+        off_plan = request.form.get("off_plan") == "1"
+        raw_sd = request.form.get("split_weekday", type=int)
+        split_weekday = raw_sd if raw_sd is not None and 0 <= raw_sd <= 6 else None
+        num_sets = request.form.get("num_sets", type=int)
+        duration_seconds = request.form.get("duration_seconds", type=int)
+        exercise_note = (request.form.get("exercise_note") or "").strip() or None
 
         if not exercise_name:
             flash("Exercise name is required.", "error")
-            return render_template("log_workout.html")
+            return render_template("log_workout.html", **_log_page_ctx())
 
         try:
-            weight_lbs = float(weight_raw)
-            reps = int(reps_raw)
+            weight_lbs = float(weight_raw) if weight_raw else 0.0
+            reps = int(reps_raw) if reps_raw else 1
         except (TypeError, ValueError):
             flash("Weight and reps must be valid numbers.", "error")
-            return render_template("log_workout.html")
+            return render_template("log_workout.html", **_log_page_ctx())
 
-        if weight_lbs < 0 or reps < 1:
+        if not manual_other and (weight_lbs < 0 or reps < 1):
             flash("Enter a non-negative weight and at least 1 rep.", "error")
-            return render_template("log_workout.html")
+            return render_template("log_workout.html", **_log_page_ctx())
+        if manual_other and weight_lbs < 0:
+            weight_lbs = 0.0
+        if manual_other and reps < 1:
+            reps = 1
 
         fphoto = request.files.get("photo")
         photo = save_uploaded_image(fphoto, f"w_{current_user.id}")
@@ -124,11 +141,20 @@ def log_workout():
             photo_path=photo,
             is_pr_session=False,
             is_rest_day=False,
+            num_sets=num_sets if num_sets and num_sets > 0 else None,
+            duration_seconds=duration_seconds if duration_seconds and duration_seconds > 0 else None,
+            exercise_note=exercise_note,
+            split_weekday=split_weekday,
+            off_plan=off_plan,
         )
         db.session.add(workout)
         db.session.flush()
 
-        is_pr = _apply_pr(current_user.id, exercise_name, weight_lbs, reps)
+        is_pr = (
+            not manual_other
+            and weight_lbs > 0
+            and _apply_pr(current_user.id, exercise_name, weight_lbs, reps)
+        )
         workout.is_pr_session = bool(is_pr)
         _update_streak_for_log(current_user.id)
         db.session.commit()
@@ -144,7 +170,7 @@ def log_workout():
         flash("Workout posted.", "success")
         return redirect(url_for("social.feed"))
 
-    return render_template("log_workout.html")
+    return render_template("log_workout.html", **_log_page_ctx())
 
 
 @bp.route("/<int:workout_id>/edit", methods=["GET", "POST"])

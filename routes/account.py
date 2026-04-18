@@ -107,6 +107,8 @@ def settings():
             current_user.public_show_streak_stats = bool(request.form.get("public_show_streak_stats"))
             current_user.public_show_pr_highlights = bool(request.form.get("public_show_pr_highlights"))
             current_user.public_show_profile_fields = bool(request.form.get("public_show_profile_fields"))
+            current_user.public_weight_chart = bool(request.form.get("public_weight_chart"))
+            current_user.public_workout_progress = bool(request.form.get("public_workout_progress"))
             db.session.commit()
             flash("Privacy settings saved.", "success")
             return redirect(url_for("account.settings") + "#privacy")
@@ -137,6 +139,14 @@ def settings():
                 pass
         current_user.workout_days = json.dumps(sorted(set(ints)))
 
+        try:
+            rh = int(request.form.get("reminder_hour") or 8)
+            rm = int(request.form.get("reminder_minute") or 0)
+        except (TypeError, ValueError):
+            rh, rm = 8, 0
+        current_user.reminder_hour = max(0, min(23, rh))
+        current_user.reminder_minute = max(0, min(59, rm))
+
         raw_se = (request.form.get("school_email") or "").strip().lower()
         if raw_se:
             if not _EDU.match(raw_se):
@@ -153,19 +163,45 @@ def settings():
     return _settings_render()
 
 
+@bp.post("/api/city-search")
+@login_required
+def api_city_search():
+    from city_search import search_us_places
+
+    data = request.get_json(silent=True) or {}
+    q = (data.get("query") or "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": False, "error": "Type at least two characters."}), 400
+    ua = str(current_app.config.get("GYMLINK_HTTP_USER_AGENT", "GymLink/1.0"))
+    rows = search_us_places(q, user_agent=ua, limit=15)
+    return jsonify({"ok": True, "places": rows})
+
+
 @bp.post("/api/gym-search")
 @login_required
 def api_gym_search():
     """Geocode a city/area, then return nearby gyms from OSM (saved to DB on pick)."""
     data = request.get_json(silent=True) or {}
     q = (data.get("query") or data.get("city") or "").strip()
-    if len(q) < 2:
-        return jsonify({"ok": False, "error": "Enter a city or neighborhood."}), 400
     ua = str(current_app.config.get("GYMLINK_HTTP_USER_AGENT", "GymLink/1.0"))
-    coords = geocode_city(q, user_agent=ua)
-    if not coords:
-        return jsonify({"ok": False, "error": "Could not find that location. Try a larger nearby city."}), 400
-    lat, lon = coords
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+    if lat is not None and lng is not None:
+        try:
+            lat_f = float(lat)
+            lon_f = float(lng)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid coordinates."}), 400
+        if not (-90 <= lat_f <= 90 and -180 <= lon_f <= 180):
+            return jsonify({"ok": False, "error": "Invalid coordinates."}), 400
+        lat, lon = lat_f, lon_f
+    else:
+        if len(q) < 2:
+            return jsonify({"ok": False, "error": "Enter a city or neighborhood."}), 400
+        coords = geocode_city(q, user_agent=ua)
+        if not coords:
+            return jsonify({"ok": False, "error": "Could not find that location. Try a larger nearby city."}), 400
+        lat, lon = coords
     overpass_url = str(current_app.config.get("OVERPASS_API_URL"))
     radius = min(float(data.get("radius_m") or 25000), 50000)
     raw = discover_gyms_nearby(lat, lon, radius, overpass_url=overpass_url, user_agent=ua)
@@ -226,13 +262,27 @@ def api_gym_manual():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
     address = (data.get("address") or "").strip() or "Custom"
-    try:
-        lat = float(data.get("latitude"))
-        lng = float(data.get("longitude"))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Latitude and longitude are required."}), 400
     if not name:
         return jsonify({"ok": False, "error": "Gym name is required."}), 400
+    lat_raw = data.get("latitude")
+    lng_raw = data.get("longitude")
+    lat: float
+    lng: float
+    if lat_raw is not None and lng_raw is not None:
+        try:
+            lat = float(lat_raw)
+            lng = float(lng_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid coordinates."}), 400
+    else:
+        ua = str(current_app.config.get("GYMLINK_HTTP_USER_AGENT", "GymLink/1.0"))
+        geo_q = f"{name}, {address}, USA".strip()
+        coords = geocode_city(geo_q, user_agent=ua)
+        if not coords:
+            return jsonify(
+                {"ok": False, "error": "Could not find that location. Include city and state in the address line."}
+            ), 400
+        lat, lng = coords
     if not math.isfinite(lat) or not math.isfinite(lng) or abs(lat) > 90 or abs(lng) > 180:
         return jsonify({"ok": False, "error": "Invalid coordinates."}), 400
     g = Gym(

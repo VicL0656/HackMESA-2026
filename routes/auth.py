@@ -133,8 +133,10 @@ def forgot_password():
     if current_user.is_authenticated:
         return redirect(url_for("leaderboard.home"))
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
-        user = User.query.filter_by(email=email).first()
+        from username_utils import resolve_user_by_email_or_username
+
+        raw = (request.form.get("email") or "").strip()
+        user = resolve_user_by_email_or_username(raw)
         if not user:
             flash("If that email is on file, you will receive reset instructions shortly.", "info")
             return redirect(url_for("auth.login"))

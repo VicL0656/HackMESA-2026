@@ -14,6 +14,7 @@ from models import (
     FriendFavorite,
     FriendGroup,
     FriendGroupMember,
+    GroupChallengeComplete,
     GroupMessage,
     Gym,
     Match,

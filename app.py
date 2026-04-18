@@ -92,6 +92,7 @@ def create_app():
         FriendGroup,
         FriendGroupMember,
         FriendRequest,
+        GroupChallengeComplete,
         Goal,
         Gym,
         GroupMessage,
@@ -303,6 +304,20 @@ def _sqlite_add_missing_columns() -> None:
     add_col("users", "public_show_streak_stats", "INTEGER DEFAULT 1")
     add_col("users", "public_show_pr_highlights", "INTEGER DEFAULT 1")
     add_col("users", "public_show_profile_fields", "INTEGER DEFAULT 1")
+    add_col("users", "public_weight_chart", "INTEGER DEFAULT 0")
+    add_col("users", "public_workout_progress", "INTEGER DEFAULT 0")
+    add_col("users", "reminder_hour", "INTEGER DEFAULT 8")
+    add_col("users", "reminder_minute", "INTEGER DEFAULT 0")
+    add_col("users", "current_body_weight_lbs", "FLOAT")
+    add_col("matches", "user_a_last_read_at", "DATETIME")
+    add_col("matches", "user_b_last_read_at", "DATETIME")
+    add_col("workouts", "num_sets", "INTEGER")
+    add_col("workouts", "duration_seconds", "INTEGER")
+    add_col("workouts", "exercise_note", "TEXT")
+    add_col("workouts", "split_weekday", "INTEGER")
+    add_col("workouts", "off_plan", "INTEGER DEFAULT 0")
+    add_col("friend_groups", "challenge_title", "VARCHAR(200)")
+    add_col("friend_groups", "challenge_day", "DATE")
 
 
 app = create_app()

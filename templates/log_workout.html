@@ -11,11 +11,33 @@
   {% endif %}
 
   <div>
-    <h1 class="text-xl font-bold text-white">Post a lift</h1>
-    <p class="mt-1 text-sm text-slate-400">PRs update automatically for the lifting leaderboard. Add a caption or photo for the feed.</p>
+    <h1 class="text-xl font-bold text-white">Log a workout</h1>
+    <p class="mt-1 text-sm text-slate-400">Follow today’s split when you can, or log something else. Optional sets, time, and notes show on the feed only when filled.</p>
   </div>
 
+  {% if split_plan %}
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-brand-400/90">Today’s plan</h2>
+    {% if split_plan.rest %}
+    <p class="mt-2 text-sm text-slate-300">Scheduled rest day — you can still log if you train anyway.</p>
+    {% else %}
+    <ul class="mt-2 space-y-1 text-sm text-slate-200">
+      {% for ex in split_plan.exercises %}
+      {% if ex.name %}
+      <li><span class="font-semibold text-white">{{ ex.name }}</span>{% if ex.sets and ex.reps %} · target {{ ex.sets }}×{{ ex.reps }}{% endif %}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl">
+    <input type="hidden" name="split_weekday" value="{{ split_weekday }}">
+    <label class="flex cursor-pointer items-center gap-2 text-xs text-amber-200/90">
+      <input type="checkbox" name="off_plan" value="1" class="rounded border-slate-600 text-amber-500">
+      Something other than today’s split
+    </label>
     <div>
       <label class="block text-xs font-medium text-slate-400" for="exercise_name">Exercise</label>
       <input list="exercise-presets" id="exercise_name" name="exercise_name" required maxlength="120"
@@ -27,23 +49,56 @@
         <option>Deadlift</option>
         <option>Overhead Press</option>
         <option>Pull Ups</option>
+        <option>Lat Pulldown</option>
+        <option>Barbell Row</option>
+        <option>Dumbbell Row</option>
+        <option>Leg Press</option>
+        <option>Leg Curl</option>
+        <option>Romanian Deadlift</option>
+        <option>Hip Thrust</option>
+        <option>Lateral Raise</option>
+        <option>Face Pull</option>
+        <option>Tricep Pushdown</option>
+        <option>Barbell Curl</option>
+        <option>Plank</option>
+        <option>Other (type below)</option>
       </datalist>
     </div>
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-xs font-medium text-slate-400" for="weight_lbs">Weight (lb)</label>
-        <input id="weight_lbs" name="weight_lbs" inputmode="decimal" required
+        <input id="weight_lbs" name="weight_lbs" inputmode="decimal"
           class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400" for="reps">Reps</label>
-        <input id="reps" name="reps" inputmode="numeric" type="number" min="1" step="1" required
+        <input id="reps" name="reps" inputmode="numeric" type="number" min="1" step="1"
           class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
+      </div>
+    </div>
+    <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+      <input type="checkbox" name="manual_other" value="1" id="manual_other" class="rounded border-slate-600 text-brand-500">
+      Manual / other — weight, reps, sets, time optional (leave blank if unknown)
+    </label>
+    <div id="manual-extras" class="hidden space-y-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] text-slate-500">Sets</label>
+          <input name="num_sets" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-500">Time (sec)</label>
+          <input name="duration_seconds" type="number" min="1" step="1" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white">
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] text-slate-500">Short description</label>
+        <input name="exercise_note" maxlength="500" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white" placeholder="Optional">
       </div>
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-400" for="caption">Caption</label>
-      <textarea id="caption" name="caption" rows="2" maxlength="2000" placeholder="Optional — how it felt, cues, hype…"
+      <textarea id="caption" name="caption" rows="2" maxlength="2000" placeholder="Optional"
         class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2"></textarea>
     </div>
     <div>
@@ -59,7 +114,7 @@
 
   <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
     <h2 class="text-sm font-semibold text-white">Rest day</h2>
-    <p class="mt-1 text-xs text-slate-500">Log a rest day to keep your streak without a lift. One per calendar day is enough.</p>
+    <p class="mt-1 text-xs text-slate-500">Log a rest day to keep your streak without a lift.</p>
     <form method="post" class="mt-3">
       <input type="hidden" name="rest_day" value="1">
       <button type="submit" class="w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:border-brand-500 hover:text-white">
@@ -68,4 +123,17 @@
     </form>
   </div>
 </div>
+<script>
+(function () {
+  var cb = document.getElementById("manual_other");
+  var box = document.getElementById("manual-extras");
+  if (!cb || !box) return;
+  function sync() {
+    if (cb.checked) box.classList.remove("hidden");
+    else box.classList.add("hidden");
+  }
+  cb.addEventListener("change", sync);
+  sync();
+})();
+</script>
 {% endblock %}

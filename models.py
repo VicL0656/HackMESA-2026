@@ -33,6 +33,11 @@ class User(UserMixin, db.Model):
     public_show_streak_stats = db.Column(db.Boolean, nullable=False, default=True)
     public_show_pr_highlights = db.Column(db.Boolean, nullable=False, default=True)
     public_show_profile_fields = db.Column(db.Boolean, nullable=False, default=True)
+    public_weight_chart = db.Column(db.Boolean, nullable=False, default=False)
+    public_workout_progress = db.Column(db.Boolean, nullable=False, default=False)
+    reminder_hour = db.Column(db.Integer, nullable=False, default=8)
+    reminder_minute = db.Column(db.Integer, nullable=False, default=0)
+    current_body_weight_lbs = db.Column(db.Float, nullable=True)
 
     home_gym = db.relationship("Gym", foreign_keys=[home_gym_id])
 
@@ -136,6 +141,8 @@ class Match(db.Model):
     user_a_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     user_b_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     matched_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    user_a_last_read_at = db.Column(db.DateTime, nullable=True)
+    user_b_last_read_at = db.Column(db.DateTime, nullable=True)
 
     user_a = db.relationship("User", foreign_keys=[user_a_id])
     user_b = db.relationship("User", foreign_keys=[user_b_id])
@@ -172,6 +179,11 @@ class Workout(db.Model):
     photo_path = db.Column(db.String(512), nullable=True)
     is_pr_session = db.Column(db.Boolean, nullable=False, default=False)
     is_rest_day = db.Column(db.Boolean, nullable=False, default=False)
+    num_sets = db.Column(db.Integer, nullable=True)
+    duration_seconds = db.Column(db.Integer, nullable=True)
+    exercise_note = db.Column(db.Text, nullable=True)
+    split_weekday = db.Column(db.Integer, nullable=True)  # 0=Mon..6=Sun when following split
+    off_plan = db.Column(db.Boolean, nullable=False, default=False)
 
 
 class WeightLog(db.Model):
@@ -296,8 +308,24 @@ class FriendGroup(db.Model):
     creator_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    challenge_title = db.Column(db.String(200), nullable=True)
+    challenge_day = db.Column(db.Date, nullable=True, index=True)
 
     creator = db.relationship("User", foreign_keys=[creator_id])
+
+
+class GroupChallengeComplete(db.Model):
+    __tablename__ = "group_challenge_completes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("friend_groups.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    challenge_day = db.Column(db.Date, nullable=False, index=True)
+    completed_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_id", "challenge_day", name="uq_group_challenge_user_day"),
+    )
 
 
 class FriendGroupMember(db.Model):

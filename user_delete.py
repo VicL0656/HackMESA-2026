@@ -13,6 +13,7 @@ from models import (
     FriendGroupMember,
     FriendRequest,
     Goal,
+    GroupChallengeComplete,
     GroupMessage,
     Match,
     Message,
@@ -53,6 +54,7 @@ def delete_user_account(user_id: int) -> None:
         or_(FriendFavorite.user_id == uid, FriendFavorite.friend_user_id == uid),
     ).delete(synchronize_session=False)
     DailyChallengeComplete.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    GroupChallengeComplete.query.filter_by(user_id=uid).delete(synchronize_session=False)
     Swipe.query.filter(
         or_(Swipe.swiper_id == uid, Swipe.swipee_id == uid),
     ).delete(synchronize_session=False)

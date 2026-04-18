@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import and_, desc, or_
 
@@ -13,6 +13,7 @@ from models import (
     FriendGroupMember,
     FriendRequest,
     Goal,
+    GroupChallengeComplete,
     GroupMessage,
     Match,
     Message,
@@ -60,52 +61,11 @@ def _friend_ids(user_id: int) -> set[int]:
     return out
 
 
-def _matched_user_ids(user_id: int) -> set[int]:
-    return _friend_ids(user_id)
-
-
-def _swiped_user_ids(user_id: int) -> set[int]:
-    rows = Swipe.query.filter_by(swiper_id=user_id).all()
-    return {r.swipee_id for r in rows}
-
-
 def _school_domain(user: User) -> str | None:
     em = (getattr(user, "school_email", None) or "").strip().lower()
     if not em or "@" not in em:
         return None
     return em.split("@", 1)[1]
-
-
-def _next_swipe_candidate(
-    user_id: int,
-    same_school_only: bool = False,
-    school: str | None = None,
-    me: User | None = None,
-):
-    matched = _matched_user_ids(user_id)
-    swiped = _swiped_user_ids(user_id)
-    me = me or db.session.get(User, user_id)
-    q = User.query.filter(User.id != user_id)
-    if same_school_only and school:
-        q = q.filter(User.school == school)
-    candidates = [u for u in q.all() if u.id not in matched and u.id not in swiped]
-    if not candidates:
-        return None
-    my_dom = _school_domain(me) if me else None
-
-    def streak_val(u: User) -> int:
-        s = Streak.query.filter_by(user_id=u.id).first()
-        return s.current_streak if s else 0
-
-    def tier(u: User) -> int:
-        if my_dom and _school_domain(u) == my_dom:
-            return 0
-        if me and me.home_gym_id and u.home_gym_id == me.home_gym_id:
-            return 1
-        return 2
-
-    candidates.sort(key=lambda u: (tier(u), -streak_val(u), u.name.lower()))
-    return candidates[0]
 
 
 def _suggested_friends_same_gym(user_id: int, home_gym_id: int | None, limit: int = 8) -> list[User]:
@@ -166,24 +126,6 @@ def _finalize_friend_requests(a_id: int, b_id: int) -> None:
         )
     ).all():
         row.status = "accepted"
-
-
-def _try_create_match(a_id: int, b_id: int) -> Match | None:
-    if a_id == b_id:
-        return None
-    low, high = (a_id, b_id) if a_id < b_id else (b_id, a_id)
-    existing = Match.query.filter_by(user_a_id=low, user_b_id=high).first()
-    if existing:
-        return existing
-    mutual = (
-        Swipe.query.filter_by(swiper_id=a_id, swipee_id=b_id, direction="right").first()
-        and Swipe.query.filter_by(swiper_id=b_id, swipee_id=a_id, direction="right").first()
-    )
-    if not mutual:
-        return None
-    m = Match(user_a_id=low, user_b_id=high, matched_at=utcnow())
-    db.session.add(m)
-    return m
 
 
 @bp.post("/friends/add")
@@ -379,101 +321,19 @@ def feed():
     )
 
 
-@bp.route("/swipe", methods=["GET", "POST"])
-@login_required
-def swipe():
-    if request.method == "POST":
-        swipee_id = request.form.get("swipee_id", type=int)
-        direction = (request.form.get("direction") or "").strip().lower()
-        if swipee_id is None or direction not in ("left", "right"):
-            flash("Invalid swipe.", "error")
-            return redirect(url_for("social.swipe"))
-
-        if swipee_id == current_user.id:
-            flash("You cannot swipe on yourself.", "error")
-            return redirect(url_for("social.swipe"))
-
-        existing = Swipe.query.filter_by(swiper_id=current_user.id, swipee_id=swipee_id).first()
-        if existing:
-            flash("You already swiped this lifter.", "info")
-            return redirect(url_for("social.swipe"))
-
-        db.session.add(Swipe(swiper_id=current_user.id, swipee_id=swipee_id, direction=direction))
-        if direction == "right":
-            m = _try_create_match(current_user.id, swipee_id)
-            if m:
-                _finalize_friend_requests(current_user.id, swipee_id)
-                from notification_helpers import mark_friend_requests_between_users_read
-
-                mark_friend_requests_between_users_read(current_user.id, swipee_id)
-                flash("It is a match! You are now gym friends.", "success")
-            else:
-                rev = FriendRequest.query.filter_by(
-                    from_user_id=swipee_id,
-                    to_user_id=current_user.id,
-                    status="pending",
-                ).first()
-                if rev:
-                    _ensure_match(current_user.id, swipee_id)
-                    _finalize_friend_requests(current_user.id, swipee_id)
-                    from notification_helpers import mark_friend_requests_between_users_read
-
-                    mark_friend_requests_between_users_read(current_user.id, swipee_id)
-                    flash("It is a match! You are now gym friends.", "success")
-                else:
-                    out = FriendRequest.query.filter_by(
-                        from_user_id=current_user.id,
-                        to_user_id=swipee_id,
-                    ).first()
-                    if not out:
-                        fr = FriendRequest(
-                            from_user_id=current_user.id,
-                            to_user_id=swipee_id,
-                            status="pending",
-                            created_at=utcnow(),
-                        )
-                        db.session.add(fr)
-                        db.session.flush()
-                        from notification_helpers import notify_friend_request_created
-
-                        notify_friend_request_created(fr)
-                        flash("Friend request sent.", "success")
-                    elif out.status == "pending":
-                        flash("Friend request already pending.", "info")
-                    elif out.status == "declined":
-                        out.status = "pending"
-                        out.created_at = utcnow()
-                        db.session.flush()
-                        from notification_helpers import notify_friend_request_created
-
-                        notify_friend_request_created(out)
-                        flash("Friend request sent again.", "success")
-                    else:
-                        flash("You are already connected with that lifter.", "info")
-        else:
-            flash("Skipped.", "info")
-        db.session.commit()
-
-        return redirect(url_for("social.swipe"))
-
-    same_school = request.args.get("school") == "1"
-    candidate = _next_swipe_candidate(
-        current_user.id,
-        same_school_only=same_school,
-        school=(current_user.school or None),
-        me=current_user,
-    )
-    return render_template(
-        "swipe.html",
-        candidate=candidate,
-        same_school_only=same_school,
-        has_school=bool(current_user.school),
-    )
+def _mark_match_read(m: Match, uid: int) -> None:
+    t = utcnow()
+    if m.user_a_id == uid:
+        m.user_a_last_read_at = t
+    else:
+        m.user_b_last_read_at = t
 
 
 @bp.route("/matches/<int:match_id>", methods=["GET", "POST"])
 @login_required
 def match_thread(match_id: int):
+    from realtime import emit_dm_message
+
     m = db.session.get(Match, match_id)
     if not m or current_user.id not in (m.user_a_id, m.user_b_id):
         abort(404)
@@ -484,21 +344,41 @@ def match_thread(match_id: int):
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
         if not content:
+            if request.form.get("xhr") == "1":
+                return jsonify({"ok": False, "error": "empty"}), 400
             flash("Message cannot be empty.", "error")
             return redirect(url_for("social.match_thread", match_id=match_id))
         msg = Message(match_id=m.id, sender_id=current_user.id, content=content, sent_at=utcnow())
         db.session.add(msg)
+        db.session.flush()
         db.session.commit()
+        payload = {
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "content": msg.content,
+            "sent_at": msg.sent_at.isoformat(),
+        }
+        emit_dm_message(m.id, payload)
+        if request.form.get("xhr") == "1":
+            return jsonify({"ok": True, "message": payload})
         return redirect(url_for("social.match_thread", match_id=match_id))
 
-    messages = (
-        Message.query.filter_by(match_id=m.id).order_by(Message.sent_at.asc()).all()
-    )
+    threshold = m.user_a_last_read_at if m.user_a_id == current_user.id else m.user_b_last_read_at
+    messages = Message.query.filter_by(match_id=m.id).order_by(Message.sent_at.asc()).all()
+    highlight_ids = {
+        msg.id
+        for msg in messages
+        if msg.sender_id != current_user.id and (threshold is None or msg.sent_at > threshold)
+    }
+    _mark_match_read(m, current_user.id)
+    db.session.commit()
+
     return render_template(
         "match_thread.html",
         match=m,
         other=other,
         messages=messages,
+        message_highlight_ids=highlight_ids,
     )
 
 
@@ -576,6 +456,10 @@ def groups_new():
 @bp.route("/groups/<int:group_id>", methods=["GET", "POST"])
 @login_required
 def group_thread(group_id: int):
+    from datetime import date as date_cls
+
+    from realtime import emit_group_message
+
     g = db.session.get(FriendGroup, group_id)
     if not g:
         abort(404)
@@ -583,15 +467,95 @@ def group_thread(group_id: int):
         abort(404)
 
     if request.method == "POST":
+        part = (request.form.get("form_part") or "message").strip()
+        if part == "rename":
+            name = (request.form.get("name") or "").strip()[:120]
+            if name:
+                g.name = name
+                g.updated_at = utcnow()
+                db.session.commit()
+                flash("Group name updated.", "success")
+            return redirect(url_for("social.group_thread", group_id=group_id))
+        if part == "add_members":
+            raw = request.form.getlist("member_id")
+            pick: list[int] = []
+            for x in raw:
+                try:
+                    pick.append(int(x))
+                except (TypeError, ValueError):
+                    pass
+            friend_set = _friend_ids(current_user.id)
+            mids = FriendGroupMember.query.filter_by(group_id=g.id).all()
+            cur_ids = {r.user_id for r in mids}
+            n = len(cur_ids)
+            for uid in pick:
+                if uid in cur_ids or uid not in friend_set or uid == current_user.id:
+                    continue
+                if n >= MAX_GC_MEMBERS:
+                    flash(f"Groups can have at most {MAX_GC_MEMBERS} people.", "error")
+                    break
+                db.session.add(FriendGroupMember(group_id=g.id, user_id=uid, joined_at=utcnow()))
+                cur_ids.add(uid)
+                n += 1
+            g.updated_at = utcnow()
+            db.session.commit()
+            flash("Members updated.", "success")
+            return redirect(url_for("social.group_thread", group_id=group_id))
+        if part == "challenge":
+            title = (request.form.get("challenge_title") or "").strip()[:200]
+            raw_d = (request.form.get("challenge_day") or "").strip()
+            d: date_cls | None = None
+            if raw_d:
+                try:
+                    d = date_cls.fromisoformat(raw_d)
+                except ValueError:
+                    d = None
+            g.challenge_title = title or None
+            g.challenge_day = d
+            g.updated_at = utcnow()
+            db.session.commit()
+            flash("Group challenge saved.", "success")
+            return redirect(url_for("social.group_thread", group_id=group_id))
+        if part == "challenge_done":
+            today = utcnow().date()
+            if g.challenge_day and g.challenge_title:
+                exists = GroupChallengeComplete.query.filter_by(
+                    group_id=g.id,
+                    user_id=current_user.id,
+                    challenge_day=g.challenge_day,
+                ).first()
+                if not exists:
+                    db.session.add(
+                        GroupChallengeComplete(
+                            group_id=g.id,
+                            user_id=current_user.id,
+                            challenge_day=g.challenge_day,
+                        )
+                    )
+                    g.updated_at = utcnow()
+                    db.session.commit()
+            return redirect(url_for("social.group_thread", group_id=group_id))
+
         content = (request.form.get("content") or "").strip()
         if not content:
+            if request.form.get("xhr") == "1":
+                return jsonify({"ok": False, "error": "empty"}), 400
             flash("Message cannot be empty.", "error")
             return redirect(url_for("social.group_thread", group_id=group_id))
-        db.session.add(
-            GroupMessage(group_id=g.id, sender_id=current_user.id, content=content, sent_at=utcnow())
-        )
+        gm = GroupMessage(group_id=g.id, sender_id=current_user.id, content=content, sent_at=utcnow())
+        db.session.add(gm)
         g.updated_at = utcnow()
+        db.session.flush()
         db.session.commit()
+        payload = {
+            "id": gm.id,
+            "sender_id": gm.sender_id,
+            "content": gm.content,
+            "sent_at": gm.sent_at.isoformat(),
+        }
+        emit_group_message(g.id, payload)
+        if request.form.get("xhr") == "1":
+            return jsonify({"ok": True, "message": payload})
         return redirect(url_for("social.group_thread", group_id=group_id))
 
     rows = FriendGroupMember.query.filter_by(group_id=g.id).all()
@@ -602,12 +566,25 @@ def group_thread(group_id: int):
     messages = (
         GroupMessage.query.filter_by(group_id=g.id).order_by(GroupMessage.sent_at.asc()).all()
     )
+    challenge_done_ids: set[int] = set()
+    if g.challenge_day:
+        challenge_done_ids = {
+            r.user_id
+            for r in GroupChallengeComplete.query.filter_by(
+                group_id=g.id,
+                challenge_day=g.challenge_day,
+            ).all()
+        }
+    friends = _gym_friend_users(current_user.id)
+    addable = [u for u in friends if u.id not in uids]
     return render_template(
         "group_thread.html",
         group=g,
         members=ordered_members,
         members_by_id=by_id,
         messages=messages,
+        challenge_done_ids=challenge_done_ids,
+        addable_friends=addable,
     )
 
 
@@ -625,6 +602,7 @@ def group_leave(group_id: int):
     db.session.flush()
     remaining = FriendGroupMember.query.filter_by(group_id=group_id).count()
     if remaining == 0:
+        GroupChallengeComplete.query.filter_by(group_id=group_id).delete(synchronize_session=False)
         GroupMessage.query.filter_by(group_id=group_id).delete(synchronize_session=False)
         db.session.delete(g)
     elif was_creator:
@@ -654,12 +632,41 @@ def connect_friend(username: str):
 @bp.post("/profile/update")
 @login_required
 def profile_update():
+    from split_presets import PRESET_KEYS, build_preset
     from workout_split_util import serialize_from_request
 
     current_user.school = (request.form.get("school") or "").strip() or None
-    current_user.workout_split = serialize_from_request(request.form)
+    preset = (request.form.get("split_preset") or "keep").strip().lower()
+    if preset in PRESET_KEYS:
+        built = build_preset(preset)
+        if built:
+            current_user.workout_split = built
+    elif preset == "legacy":
+        current_user.workout_split = serialize_from_request(request.form)
     db.session.commit()
     flash("School and split saved.", "success")
+    return redirect(url_for("social.profile"))
+
+
+@bp.post("/profile/body-weight")
+@login_required
+def profile_body_weight():
+    raw = (request.form.get("weight_lbs") or "").strip()
+    if not raw:
+        flash("Enter your current weight.", "error")
+        return redirect(url_for("social.profile"))
+    try:
+        w = float(raw)
+    except ValueError:
+        flash("Weight must be a number.", "error")
+        return redirect(url_for("social.profile"))
+    if w <= 30 or w > 800:
+        flash("Enter a realistic body weight (lb).", "error")
+        return redirect(url_for("social.profile"))
+    current_user.current_body_weight_lbs = w
+    db.session.add(WeightLog(user_id=current_user.id, weight_lbs=w, visibility="private"))
+    db.session.commit()
+    flash("Body weight saved.", "success")
     return redirect(url_for("social.profile"))
 
 
@@ -826,10 +833,31 @@ def profile():
         .all()
     )
 
+    from split_presets import parse_v2, summary_lines_v2
     from workout_split_util import card_lines, form_context
 
     _fc = form_context(current_user.workout_split)
     _lines, _legacy = card_lines(current_user.workout_split)
+    _pv = parse_v2(current_user.workout_split)
+    split_is_v2 = _pv is not None
+    split_v2_lines = summary_lines_v2(current_user.workout_split) if split_is_v2 else []
+    split_preset_key = str(_pv.get("preset") or "") if _pv else ""
+
+    wl_rows = (
+        WeightLog.query.filter_by(user_id=current_user.id)
+        .order_by(WeightLog.logged_at.desc())
+        .limit(60)
+        .all()
+    )
+    weight_chart_points = [{"t": r.logged_at.isoformat(), "w": r.weight_lbs} for r in reversed(wl_rows)]
+    prog_ex = (request.args.get("prog_ex") or "Bench Press").strip()[:120] or "Bench Press"
+    prog_rows = (
+        Workout.query.filter_by(user_id=current_user.id, exercise_name=prog_ex, is_rest_day=False)
+        .order_by(Workout.logged_at.asc())
+        .limit(120)
+        .all()
+    )
+    prog_points = [{"t": w.logged_at.isoformat(), "w": w.weight_lbs} for w in prog_rows]
 
     return render_template(
         "profile.html",
@@ -847,4 +875,10 @@ def profile():
         split_days=_fc["days"],
         split_display_lines=_lines,
         split_display_legacy=_legacy,
+        split_is_v2=split_is_v2,
+        split_v2_lines=split_v2_lines,
+        split_preset_key=split_preset_key,
+        weight_chart_points=weight_chart_points,
+        prog_exercise=prog_ex,
+        prog_points=prog_points,
     )

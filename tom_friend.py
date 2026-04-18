@@ -18,7 +18,7 @@ TOM_EMAIL = "tom+system@gymlink.invalid"
 TOM_DISPLAY_NAME = "Tom"
 TOM_WELCOME = (
     "Hey — I'm Tom, your first gym friend here. "
-    "Log a workout, say hi in chat anytime, and swipe to find more lifters. "
+    "Log a workout, say hi in chat anytime, and add friends from Home or suggested lifters. "
     "Welcome to GymLink!"
 )
 

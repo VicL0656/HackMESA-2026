@@ -226,7 +226,23 @@ def home():
     fav_users = [u for u in friends if u.id in favorite_ids]
     other_users = [u for u in friends if u.id not in favorite_ids]
     fav_sorted = _sort_friends(fav_users, sort=sort, streak_map=streak_map, pr_map=pr_map)
-    other_sorted = _sort_friends(other_users, sort=sort, streak_map=streak_map, pr_map=pr_map)
+    other_sorted = _sort_friends(
+        other_users + [current_user],
+        sort=sort,
+        streak_map=streak_map,
+        pr_map=pr_map,
+    )
+
+    ranked_all = _sort_friends(
+        list(friends) + [current_user],
+        sort=sort,
+        streak_map=streak_map,
+        pr_map=pr_map,
+    )
+    medal_emojis = ("🥇", "🥈", "🥉")
+    medal_by_id: dict[int, str] = {}
+    for idx, u in enumerate(ranked_all[:3]):
+        medal_by_id[u.id] = medal_emojis[idx]
 
     today = utcnow().date()
     challenge = _ensure_daily_challenge(today)
@@ -269,4 +285,5 @@ def home():
         challenge_friends_done=challenge_friends_done,
         suggestions=suggestions,
         gym_by_id=gym_by_id,
+        medal_by_id=medal_by_id,
     )

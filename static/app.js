@@ -419,7 +419,20 @@ function initWorkoutDayReminders() {
     if (typeof Notification === "undefined") return;
     if (Notification.permission !== "granted") return;
     const now = new Date();
-    if (now.getHours() !== 8 || now.getMinutes() > 5) return;
+    let rh = 8;
+    let rm = 0;
+    try {
+      rh = parseInt(document.body.dataset.reminderHour || "8", 10);
+      rm = parseInt(document.body.dataset.reminderMinute || "0", 10);
+    } catch {
+      rh = 8;
+      rm = 0;
+    }
+    if (Number.isNaN(rh) || rh < 0 || rh > 23) rh = 8;
+    if (Number.isNaN(rm) || rm < 0 || rm > 59) rm = 0;
+    const nowM = now.getHours() * 60 + now.getMinutes();
+    const targetM = rh * 60 + rm;
+    if (nowM < targetM || nowM > targetM + 5) return;
     if (!set.has(pyWeekdayFromLocalDate(now))) return;
     const key = `gymlink_remind_${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
     if (sessionStorage.getItem(key)) return;

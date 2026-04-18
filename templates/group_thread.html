@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ group.name }} · GC · GymLink{% endblock %}
 {% block content %}
-<div class="space-y-4">
+<div id="gc-chat-root" class="space-y-4" data-group-id="{{ group.id }}" data-me-id="{{ current_user.id }}">
   <div class="flex flex-wrap items-center justify-between gap-2">
-    <a href="{{ url_for('social.groups_home') }}" class="text-xs font-semibold text-slate-400 hover:text-white">← Groups</a>
+    <a href="{{ url_for('inbox.inbox_home') }}#inbox-chats" class="text-xs font-semibold text-slate-400 hover:text-white">← Inbox</a>
     <form method="post" action="{{ url_for('social.group_leave', group_id=group.id) }}" onsubmit="return confirm('Leave this group chat?');">
       <button type="submit" class="text-xs font-semibold text-rose-400 hover:text-rose-300">Leave</button>
     </form>
@@ -18,16 +18,65 @@
     </p>
   </div>
 
-  <div class="max-h-[50vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
+  <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-400">
+    <p class="font-semibold text-slate-300">Group settings</p>
+    <form method="post" class="mt-2 flex flex-wrap items-end gap-2">
+      <input type="hidden" name="form_part" value="rename">
+      <input name="name" value="{{ group.name }}" maxlength="120" placeholder="Group name"
+        class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
+      <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Rename</button>
+    </form>
+    {% if addable_friends %}
+    <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
+      <input type="hidden" name="form_part" value="add_members">
+      <p class="text-[10px] text-slate-500">Add gym friends</p>
+      <div class="flex max-h-28 flex-col gap-1 overflow-y-auto">
+        {% for u in addable_friends %}
+        <label class="flex cursor-pointer items-center gap-2 text-slate-200">
+          <input type="checkbox" name="member_id" value="{{ u.id }}" class="rounded border-slate-600 text-brand-500">
+          <span>@{{ u.username }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">Add selected</button>
+    </form>
+    {% endif %}
+    <form method="post" class="mt-3 space-y-2 border-t border-slate-800 pt-3">
+      <input type="hidden" name="form_part" value="challenge">
+      <p class="text-[10px] text-slate-500">Group challenge (visible to members)</p>
+      <input name="challenge_title" value="{{ group.challenge_title or '' }}" maxlength="200" placeholder="e.g. Everyone trains legs Friday"
+        class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
+      <input type="date" name="challenge_day" value="{{ group.challenge_day.isoformat() if group.challenge_day else '' }}"
+        class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white">
+      <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white hover:bg-slate-700">Save challenge</button>
+    </form>
+    {% if group.challenge_title and group.challenge_day %}
+    <div class="mt-2 border-t border-slate-800 pt-2">
+      <p class="text-slate-200">{{ group.challenge_title }}</p>
+      <p class="text-[10px] text-slate-500">Day: {{ group.challenge_day.strftime('%b %d, %Y') }}</p>
+      {% if current_user.id in challenge_done_ids %}
+      <p class="mt-1 text-emerald-400">You marked this complete.</p>
+      {% else %}
+      <form method="post" class="mt-1">
+        <input type="hidden" name="form_part" value="challenge_done">
+        <button type="submit" class="rounded-lg border border-brand-600 px-3 py-1 text-[11px] font-semibold text-brand-300 hover:bg-brand-950">Mark my day done</button>
+      </form>
+      {% endif %}
+      <p class="mt-1 text-[10px] text-slate-600">Completed: {{ challenge_done_ids|length }} / {{ members|length }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div id="gc-messages" class="max-h-[40vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
     {% for msg in messages %}
     {% set snd = members_by_id.get(msg.sender_id) %}
-    <div class="flex {% if msg.sender_id == current_user.id %}justify-end{% else %}justify-start{% endif %}">
+    <div class="gc-msg flex {% if msg.sender_id == current_user.id %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}">
       <div class="max-w-[85%] rounded-2xl px-3 py-2 text-sm {% if msg.sender_id == current_user.id %}bg-brand-600 text-white{% else %}bg-slate-800 text-slate-100{% endif %}">
         {% if msg.sender_id != current_user.id and snd %}
         <p class="mb-1 text-[10px] font-semibold text-brand-400/90">@{{ snd.username }}</p>
         {% endif %}
-        <p>{{ msg.content }}</p>
-        <p class="mt-1 text-[10px] opacity-70">{{ msg.sent_at.strftime('%b %d · %I:%M %p') }}</p>
+        <p class="gc-msg-body">{{ msg.content }}</p>
+        <p class="gc-msg-time mt-1 text-[10px] opacity-70" data-utc="{{ msg.sent_at.isoformat() }}"></p>
       </div>
     </div>
     {% else %}
@@ -35,10 +84,71 @@
     {% endfor %}
   </div>
 
-  <form method="post" class="flex gap-2">
+  <form id="gc-send-form" class="flex gap-2">
+    <input type="hidden" name="xhr" value="1">
     <input name="content" maxlength="2000" required placeholder="Message the group"
       class="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">
     <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Send</button>
   </form>
 </div>
+<script>
+(function () {
+  function fmtLocal(iso) {
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    } catch (e) {
+      return iso;
+    }
+  }
+  document.querySelectorAll(".gc-msg-time[data-utc]").forEach(function (el) {
+    el.textContent = fmtLocal(el.getAttribute("data-utc"));
+  });
+  var root = document.getElementById("gc-chat-root");
+  var box = document.getElementById("gc-messages");
+  var form = document.getElementById("gc-send-form");
+  if (!root || !box || !form) return;
+  var gid = parseInt(root.getAttribute("data-group-id"), 10);
+  var meId = parseInt(root.getAttribute("data-me-id"), 10);
+  try {
+    var socket = typeof io !== "undefined" ? io({ transports: ["websocket", "polling"] }) : null;
+    if (socket) {
+      socket.on("group_message", function (payload) {
+        if (!payload || payload.group_id !== gid) return;
+        var wrap = document.createElement("div");
+        wrap.className = "gc-msg flex " + (payload.sender_id === meId ? "justify-end" : "justify-start");
+        var inner = document.createElement("div");
+        inner.className =
+          "max-w-[85%] rounded-2xl px-3 py-2 text-sm " +
+          (payload.sender_id === meId ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-100");
+        inner.innerHTML =
+          (payload.sender_id !== meId
+            ? '<p class="mb-1 text-[10px] font-semibold text-brand-400/90">Member</p>'
+            : "") +
+          '<p class="gc-msg-body"></p><p class="gc-msg-time mt-1 text-[10px] opacity-70" data-utc=""></p>';
+        inner.querySelector(".gc-msg-body").textContent = payload.content || "";
+        var te = inner.querySelector(".gc-msg-time");
+        te.setAttribute("data-utc", payload.sent_at || "");
+        te.textContent = fmtLocal(payload.sent_at || "");
+        wrap.appendChild(inner);
+        box.appendChild(wrap);
+        box.scrollTop = box.scrollHeight;
+      });
+    }
+  } catch (e) {}
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var fd = new FormData(form);
+    var inp = form.querySelector('input[name="content"]');
+    var txt = (inp && inp.value || "").trim();
+    if (!txt) return;
+    try {
+      var res = await fetch(window.location.pathname, { method: "POST", body: fd, credentials: "same-origin" });
+      var data = await res.json().catch(function () { return null; });
+      if (data && data.ok) inp.value = "";
+    } catch (err) {}
+  });
+})();
+</script>
 {% endblock %}
