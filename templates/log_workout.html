@@ -1,7 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Log workout · GymLink{% endblock %}
 {% block content %}
-<div class="space-y-5">
+<style>
+  .log-workout-page .log-lbl-editable { color: rgba(52, 211, 153, 0.92); }
+  .log-workout-page .log-lbl-locked { color: rgb(100 116 139); }
+  .log-workout-page input.log-inp-editable {
+    border-color: rgba(52, 211, 153, 0.45) !important;
+    background: rgba(6, 78, 59, 0.22) !important;
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12);
+  }
+  .log-workout-page input.log-inp-locked {
+    border-color: rgb(51 65 85) !important;
+    background: rgb(15 23 42) !important;
+    box-shadow: none;
+    opacity: 0.97;
+  }
+</style>
+<div class="log-workout-page space-y-5">
   {% if request.args.get('new_pr') %}
   <div id="pr-toast" class="animate-bounce rounded-2xl border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-center shadow-lg shadow-amber-900/20">
     <p class="text-xs font-semibold uppercase tracking-wide text-amber-200">New PR</p>
@@ -12,7 +27,7 @@
 
   <div>
     <h1 class="text-xl font-bold text-white">Log a workout</h1>
-    <p class="mt-1 text-sm text-slate-400">Today’s plan fills in below. Edit <span class="text-white">weight</span> for every lift; adjust time for runs or timed work. Check <span class="text-white">Manual / other</span> to change sets and reps while keeping the same exercises.</p>
+    <p class="mt-1 text-sm text-slate-400">Today’s plan fills in below. <span class="text-emerald-400/90">Green-tinted fields</span> are editable; <span class="text-slate-500">gray labels</span> follow the plan until you use the checkboxes. <span class="font-medium text-amber-200/90">Something other than today’s split</span> unlocks names, notes, and row removal. <span class="font-medium text-sky-300/90">Manual / other</span> keeps names on-plan but lets you edit sets and reps.</p>
   </div>
 
   {% if split_plan %}
@@ -52,15 +67,22 @@
     data-follow-split="{% if plan_exercises|length > 0 %}1{% else %}0{% endif %}">
     <input type="hidden" name="split_weekday" value="{{ split_weekday }}">
 
-    <label class="flex cursor-pointer items-start gap-2 text-xs text-amber-200/90">
+    <label class="flex cursor-pointer items-start gap-2 text-xs text-slate-400">
       <input type="checkbox" name="off_plan" value="1" id="off_plan_cb" class="mt-0.5 rounded border-slate-600 text-amber-500">
-      <span>Something other than today’s split — choose exercise names yourself and add rows.</span>
+      <span><span class="font-semibold text-amber-200/90">Something other than today’s split</span> — choose exercise names yourself, <span class="text-rose-400/85">remove rows</span>, and add rows.</span>
     </label>
 
     <label class="flex cursor-pointer items-start gap-2 text-xs text-slate-400">
       <input type="checkbox" name="manual_other" value="1" id="manual_other_cb" class="mt-0.5 rounded border-slate-600 text-brand-500">
-      <span>Manual / other — change <span class="text-slate-200">sets and reps</span> (exercise names stay on-plan unless you checked the option above). Weight and mile time stay editable either way.</span>
+      <span><span class="text-sky-300/90">Manual / other</span> — change <span class="text-slate-200">sets and reps</span> (exercise names stay on-plan unless you checked the amber option above). <span class="text-emerald-400/80">Weight</span> and mile time stay editable either way.</span>
     </label>
+
+    <p id="log-field-legend" class="rounded-lg border border-slate-800/80 bg-slate-950/40 px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+      <span class="font-semibold text-slate-400">Fields:</span>
+      <span class="text-emerald-400/90">Green</span> = you can edit ·
+      <span class="text-slate-500">Gray</span> = locked to today’s plan ·
+      <span class="text-rose-400/80">Remove</span> appears when <span class="text-amber-200/90">Something other than today’s split</span> is checked (or when you have no saved plan for today).
+    </p>
 
     {% include "_exercise_datalist.html" %}
 
@@ -75,36 +97,39 @@
         <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3"
           data-plan-reps="{{ pl_reps }}" data-plan-sets="{{ pl_sets }}" data-plan-sec="{{ pl_sec }}"
           data-run="{% if is_run %}1{% else %}0{% endif %}">
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise {{ loop.index }}</p>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise {{ loop.index }}</p>
+            <button type="button" class="log-remove-line log-remove-wrap hidden rounded px-2 py-0.5 text-[10px] font-semibold text-rose-400/90 hover:bg-rose-500/10 hover:text-rose-300" title="Remove this row">Remove</button>
+          </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
-            <div class="sm:col-span-4">
-              <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+            <div class="log-field sm:col-span-4" data-field="name">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Exercise</label>
               <input type="text" name="entry_name" value="{{ en }}" maxlength="120" required
                 class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
                 {% if plan_exercises|length > 0 %}readonly{% endif %} autocomplete="off">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+            <div class="log-field sm:col-span-2" data-field="weight">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Weight (lb)</label>
               <input type="text" name="entry_weight" inputmode="decimal"
                 class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+            <div class="log-field sm:col-span-2" data-field="reps">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Reps</label>
               <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1" value="{{ pl_reps if pl_reps != '' else '' }}"
                 class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+            <div class="log-field sm:col-span-2" data-field="sets">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Sets</label>
               <input type="number" name="entry_sets" min="1" step="1" value="{{ pl_sets if pl_sets != '' else '' }}"
                 class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2 log-dur-cell">
-              <label class="block text-[10px] font-medium text-slate-500">Time (sec) <span class="text-slate-600">· mile / timed</span></label>
+            <div class="log-field sm:col-span-2 log-dur-cell" data-field="dur">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Time (sec) <span class="text-slate-600">· mile / timed</span></label>
               <input type="number" name="entry_duration" min="1" step="1" value="{{ pl_sec if pl_sec != '' else '' }}" placeholder="—"
                 class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-12">
-              <label class="block text-[10px] font-medium text-slate-500">Note</label>
+            <div class="log-field sm:col-span-12" data-field="note">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Note</label>
               <input type="text" name="entry_note" maxlength="500" value="{{ ex.note or '' }}" placeholder="Optional"
                 class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
                 {% if plan_exercises|length > 0 %}readonly{% endif %}>
@@ -114,36 +139,39 @@
         {% endfor %}
       {% else %}
         <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3" data-plan-reps="" data-plan-sets="" data-plan-sec="" data-run="0">
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Lift</p>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Lift</p>
+            <button type="button" class="log-remove-line log-remove-wrap hidden rounded px-2 py-0.5 text-[10px] font-semibold text-rose-400/90 hover:bg-rose-500/10 hover:text-rose-300" title="Remove this row">Remove</button>
+          </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
-            <div class="sm:col-span-4">
-              <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+            <div class="log-field sm:col-span-4" data-field="name">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Exercise</label>
               <input list="gymlink-exercise-presets" type="text" name="entry_name" maxlength="120" required
                 class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
                 placeholder="Bench Press" autocomplete="off">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+            <div class="log-field sm:col-span-2" data-field="weight">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Weight (lb)</label>
               <input type="text" name="entry_weight" inputmode="decimal"
                 class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+            <div class="log-field sm:col-span-2" data-field="reps">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Reps</label>
               <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1"
                 class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2">
-              <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+            <div class="log-field sm:col-span-2" data-field="sets">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Sets</label>
               <input type="number" name="entry_sets" min="1" step="1"
                 class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-2 log-dur-cell">
-              <label class="block text-[10px] font-medium text-slate-500">Time (sec)</label>
+            <div class="log-field sm:col-span-2 log-dur-cell" data-field="dur">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Time (sec)</label>
               <input type="number" name="entry_duration" min="1" step="1" placeholder="—"
                 class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
-            <div class="sm:col-span-12">
-              <label class="block text-[10px] font-medium text-slate-500">Note</label>
+            <div class="log-field sm:col-span-12" data-field="note">
+              <label class="log-lbl block text-[10px] font-medium text-slate-500">Note</label>
               <input type="text" name="entry_note" maxlength="500" placeholder="Optional"
                 class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
             </div>
@@ -156,37 +184,37 @@
       <div class="log-line rounded-xl border border-slate-800 bg-slate-950/50 p-3" data-plan-reps="" data-plan-sets="" data-plan-sec="" data-run="0">
         <div class="mb-2 flex items-center justify-between gap-2">
           <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Exercise</p>
-          <button type="button" class="log-remove-line text-[10px] font-semibold text-rose-400 hover:text-rose-300">Remove</button>
+          <button type="button" class="log-remove-line log-remove-wrap hidden rounded px-2 py-0.5 text-[10px] font-semibold text-rose-400/90 hover:bg-rose-500/10 hover:text-rose-300" title="Remove this row">Remove</button>
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
-          <div class="sm:col-span-4">
-            <label class="block text-[10px] font-medium text-slate-500">Exercise</label>
+          <div class="log-field sm:col-span-4" data-field="name">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Exercise</label>
             <input list="gymlink-exercise-presets" type="text" name="entry_name" maxlength="120"
               class="entry-name mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500"
               placeholder="Lift name" autocomplete="off">
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-[10px] font-medium text-slate-500">Weight (lb)</label>
+          <div class="log-field sm:col-span-2" data-field="weight">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Weight (lb)</label>
             <input type="text" name="entry_weight" inputmode="decimal"
               class="entry-weight mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-[10px] font-medium text-slate-500">Reps</label>
+          <div class="log-field sm:col-span-2" data-field="reps">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Reps</label>
             <input type="number" name="entry_reps" inputmode="numeric" min="1" step="1"
               class="entry-reps mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-[10px] font-medium text-slate-500">Sets</label>
+          <div class="log-field sm:col-span-2" data-field="sets">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Sets</label>
             <input type="number" name="entry_sets" min="1" step="1"
               class="entry-sets mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
           </div>
-          <div class="sm:col-span-2 log-dur-cell">
-            <label class="block text-[10px] font-medium text-slate-500">Time (sec)</label>
+          <div class="log-field sm:col-span-2 log-dur-cell" data-field="dur">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Time (sec)</label>
             <input type="number" name="entry_duration" min="1" step="1" placeholder="—"
               class="entry-dur mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
           </div>
-          <div class="sm:col-span-12">
-            <label class="block text-[10px] font-medium text-slate-500">Note</label>
+          <div class="log-field sm:col-span-12" data-field="note">
+            <label class="log-lbl block text-[10px] font-medium text-slate-500">Note</label>
             <input type="text" name="entry_note" maxlength="500" placeholder="Optional"
               class="entry-note mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-white outline-none focus:border-brand-500">
           </div>
@@ -239,6 +267,24 @@
 
   function eachLine(fn) {
     box.querySelectorAll(".log-line").forEach(fn);
+  }
+
+  function paintLineVisuals(line) {
+    line.querySelectorAll(".log-field").forEach(function (wrap) {
+      var inp = wrap.querySelector("input");
+      var lbl = wrap.querySelector(".log-lbl");
+      if (!inp || !lbl) return;
+      var locked = inp.readOnly === true;
+      lbl.classList.remove("log-lbl-editable", "log-lbl-locked");
+      inp.classList.remove("log-inp-editable", "log-inp-locked");
+      if (locked) {
+        lbl.classList.add("log-lbl-locked");
+        inp.classList.add("log-inp-locked");
+      } else {
+        lbl.classList.add("log-lbl-editable");
+        inp.classList.add("log-inp-editable");
+      }
+    });
   }
 
   function syncLine(line) {
@@ -303,8 +349,13 @@
 
   function syncAll() {
     eachLine(syncLine);
+    eachLine(paintLineVisuals);
     var off = offCb.checked;
     var follow = form.getAttribute("data-follow-split") === "1";
+    var canRemove = off || !follow;
+    box.querySelectorAll(".log-remove-wrap").forEach(function (btn) {
+      btn.classList.toggle("hidden", !canRemove);
+    });
     if (addBtn) {
       if (off || !follow) addBtn.classList.remove("hidden");
       else addBtn.classList.add("hidden");
