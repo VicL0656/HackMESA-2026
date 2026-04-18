@@ -9,52 +9,7 @@
     </form>
   </div>
 
-  <section id="inbox-chats" class="scroll-mt-4 space-y-3">
-    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Chats</h2>
-    <p class="text-[11px] text-slate-500">Direct messages and group threads. <a href="{{ url_for('social.groups_new') }}" class="font-semibold text-brand-500 hover:text-brand-400">New group</a></p>
-
-    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl">
-      <div class="border-b border-slate-800 bg-slate-950/50 px-4 py-2">
-        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Direct messages</h3>
-      </div>
-      <div class="divide-y divide-slate-800">
-        {% if not dm_rows %}
-        <p class="px-4 py-5 text-center text-sm text-slate-500">No conversations yet. <a href="{{ url_for('social.add_friend') }}" class="font-semibold text-brand-500 hover:text-brand-400">Add friends</a> from Home or the Add friend page.</p>
-        {% else %}
-        {% for m, other in dm_rows %}
-        <a href="{{ url_for('social.match_thread', match_id=m.id) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-950/60">
-          <img src="{{ other.photo_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-slate-800 object-cover">
-          <div class="min-w-0 flex-1">
-            <p class="truncate font-semibold text-white">{{ other.name }}</p>
-            <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ other.username }}</p>
-          </div>
-          <span class="text-slate-500" aria-hidden="true">›</span>
-        </a>
-        {% endfor %}
-        {% endif %}
-      </div>
-
-      <div class="border-t border-slate-800 bg-slate-950/40 px-4 py-2">
-        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Group chats</h3>
-      </div>
-      <div class="divide-y divide-slate-800">
-        {% if not group_previews %}
-        <p class="px-4 py-4 text-center text-sm text-slate-500">No group chats. Start one with gym friends.</p>
-        {% else %}
-        {% for g, members in group_previews %}
-        <a href="{{ url_for('social.group_thread', group_id=g.id) }}" class="block px-4 py-3 hover:bg-slate-950/60">
-          <p class="font-semibold text-white">{{ g.name }}</p>
-          <p class="mt-0.5 truncate text-[11px] text-slate-500">
-            {% for u in members %}{{ u.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-          </p>
-        </a>
-        {% endfor %}
-        {% endif %}
-      </div>
-    </div>
-  </section>
-
-  <section class="space-y-2">
+  <section id="inbox-notifications" class="scroll-mt-4 space-y-2">
     <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Notifications</h2>
     <p class="text-[11px] text-slate-500">Priority alerts stay at the top.</p>
 
@@ -119,6 +74,51 @@
         <p class="px-4 py-4 text-center text-sm text-slate-500">No other messages yet.</p>
         {% elif not other_unread and read_recent %}
         <p class="px-4 py-2 text-center text-[11px] text-slate-600">Showing recent dismissed items above.</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section id="inbox-chats" class="scroll-mt-4 space-y-3">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Chats</h2>
+    <p class="text-[11px] text-slate-500">Direct messages and group threads. <a href="{{ url_for('social.groups_new') }}" class="font-semibold text-brand-500 hover:text-brand-400">New group</a></p>
+
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl">
+      <div class="border-b border-slate-800 bg-slate-950/50 px-4 py-2">
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Direct messages</h3>
+      </div>
+      <div class="divide-y divide-slate-800">
+        {% if not dm_rows %}
+        <p class="px-4 py-5 text-center text-sm text-slate-500">No conversations yet. <a href="{{ url_for('social.add_friend') }}" class="font-semibold text-brand-500 hover:text-brand-400">Add friends</a> from Home or the Add friend page.</p>
+        {% else %}
+        {% for m, other in dm_rows %}
+        <a href="{{ url_for('social.match_thread', match_id=m.id) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-950/60">
+          <img src="{{ other.photo_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-slate-800 object-cover">
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold text-white">{{ other.name }}</p>
+            <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ other.username }}</p>
+          </div>
+          <span class="text-slate-500" aria-hidden="true">›</span>
+        </a>
+        {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="border-t border-slate-800 bg-slate-950/40 px-4 py-2">
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Group chats</h3>
+      </div>
+      <div class="divide-y divide-slate-800">
+        {% if not group_previews %}
+        <p class="px-4 py-4 text-center text-sm text-slate-500">No group chats. Start one with gym friends.</p>
+        {% else %}
+        {% for g, members in group_previews %}
+        <a href="{{ url_for('social.group_thread', group_id=g.id) }}" class="block px-4 py-3 hover:bg-slate-950/60">
+          <p class="font-semibold text-white">{{ g.name }}</p>
+          <p class="mt-0.5 truncate text-[11px] text-slate-500">
+            {% for u in members %}{{ u.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </p>
+        </a>
+        {% endfor %}
         {% endif %}
       </div>
     </div>
