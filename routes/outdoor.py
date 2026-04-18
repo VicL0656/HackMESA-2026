@@ -7,7 +7,7 @@ from extensions import db
 from models import OutdoorActivity
 from models import utcnow
 from realtime import emit_leaderboard_refresh
-from uploads_util import save_uploaded_image
+from uploads_util import file_was_chosen, save_uploaded_image
 
 bp = Blueprint("outdoor", __name__, url_prefix="/outdoor")
 
@@ -53,7 +53,13 @@ def log_outdoor():
             except ValueError:
                 pass
 
-        photo = save_uploaded_image(request.files.get("photo"), f"out_{current_user.id}")
+        fphoto = request.files.get("photo")
+        photo = save_uploaded_image(fphoto, f"out_{current_user.id}")
+        if file_was_chosen(fphoto) and not photo:
+            flash(
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit (HEIC/iPhone often needs “Most Compatible”).",
+                "warning",
+            )
         row = OutdoorActivity(
             user_id=current_user.id,
             kind=kind,

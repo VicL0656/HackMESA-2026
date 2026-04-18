@@ -171,17 +171,28 @@ def create_app():
 
     @app.template_filter("media_url")
     def media_url_filter(path: str | None) -> str:
-        """Turn stored `/uploads/...` paths into correct URLs (fixes feed images)."""
-        if not path:
+        """Resolve stored upload paths and external URLs for <img src> (feed, profile, etc.)."""
+        if path is None:
             return ""
         p = str(path).strip()
+        if not p:
+            return ""
         if p.startswith("http://") or p.startswith("https://"):
             return p
+        p = p.replace("\\", "/").strip()
+        low = p.lower()
+        if low.startswith("uploads/") and not low.startswith("/uploads/"):
+            p = "/" + p
+        # Bare filename only (legacy rows): treat as instance upload
+        if not p.startswith("/") and "/" not in p:
+            ext = Path(p).suffix.lower()
+            if ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                p = "/uploads/" + Path(p).name
         if p.startswith("/uploads/"):
             safe = Path(p).name
-            if not safe:
-                return p
-            return url_for("uploaded_file", name=safe)
+            if safe and ".." not in p:
+                return url_for("uploaded_file", name=safe)
+            return ""
         return p
 
     @app.context_processor

@@ -7,7 +7,7 @@ from extensions import db
 from models import PersonalRecord, Streak, Workout
 from models import utcnow
 from realtime import emit_leaderboard_refresh
-from uploads_util import save_uploaded_image
+from uploads_util import file_was_chosen, save_uploaded_image
 from workout_helpers import recalculate_prs_for_user, recompute_streak_for_user
 
 bp = Blueprint("workouts", __name__, url_prefix="/workouts")
@@ -106,7 +106,13 @@ def log_workout():
             flash("Enter a non-negative weight and at least 1 rep.", "error")
             return render_template("log_workout.html")
 
-        photo = save_uploaded_image(request.files.get("photo"), f"w_{current_user.id}")
+        fphoto = request.files.get("photo")
+        photo = save_uploaded_image(fphoto, f"w_{current_user.id}")
+        if file_was_chosen(fphoto) and not photo:
+            flash(
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit (HEIC/iPhone often needs “Most Compatible” in Camera settings).",
+                "warning",
+            )
 
         workout = Workout(
             user_id=current_user.id,
@@ -162,7 +168,13 @@ def edit_workout(workout_id: int):
         w.weight_lbs = weight_lbs
         w.reps = reps
         w.caption = (request.form.get("caption") or "").strip() or None
-        photo = save_uploaded_image(request.files.get("photo"), f"w_{current_user.id}")
+        fphoto = request.files.get("photo")
+        photo = save_uploaded_image(fphoto, f"w_{current_user.id}")
+        if file_was_chosen(fphoto) and not photo:
+            flash(
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit.",
+                "warning",
+            )
         if photo:
             w.photo_path = photo
         db.session.flush()

@@ -7,7 +7,12 @@ from flask import current_app
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def file_was_chosen(file: FileStorage | None) -> bool:
+    """True if the browser sent a filename (user picked a file), even if save failed."""
+    return bool(file and getattr(file, "filename", None) and str(file.filename).strip())
 
 
 def save_uploaded_image(

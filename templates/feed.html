@@ -52,7 +52,7 @@
       {% for u in suggested_friends %}
       <li class="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
         <div class="flex min-w-0 flex-1 items-center gap-2">
-          <img src="{{ u.photo_url }}" alt="" class="h-9 w-9 shrink-0 rounded-full border border-slate-800 object-cover">
+          <img src="{{ (u.photo_url or '')|media_url }}" alt="" class="h-9 w-9 shrink-0 rounded-full border border-slate-800 object-cover" loading="lazy">
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold text-white">{{ u.name }}{% set sb = u|school_badge %}{% if sb %} <span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-200">{{ sb }}</span>{% endif %}</p>
             <p class="truncate font-mono text-[10px] text-brand-500/80">@{{ u.username }}</p>
@@ -78,15 +78,16 @@
     <div class="space-y-4">
       {% for kind, obj in feed_items %}
       {% set author = users_by_id.get(obj.user_id) %}
+      {% set post_img = (obj.photo_path or '')|media_url %}
       <article class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg">
-        {% if kind == 'workout' and obj.photo_path %}
-        <img src="{{ obj.photo_path|media_url }}" alt="" class="aspect-[4/3] w-full object-cover">
-        {% elif kind == 'outdoor' and obj.photo_path %}
-        <img src="{{ obj.photo_path|media_url }}" alt="" class="aspect-[4/3] w-full object-cover">
+        {% if kind == 'workout' and post_img %}
+        <img src="{{ post_img }}" alt="" class="aspect-[4/3] w-full object-cover" loading="lazy">
+        {% elif kind == 'outdoor' and post_img %}
+        <img src="{{ post_img }}" alt="" class="aspect-[4/3] w-full object-cover" loading="lazy">
         {% endif %}
         <div class="flex items-start gap-3 p-3">
           {% if author %}
-          <img src="{{ author.photo_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-slate-800 object-cover">
+          <img src="{{ (author.photo_url or '')|media_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-slate-800 object-cover" loading="lazy">
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0">
               <span class="font-semibold text-white">{{ author.name }}</span>

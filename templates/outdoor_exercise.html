@@ -27,8 +27,8 @@
   <div class="space-y-3">
     {% for r in rows %}
     <article class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg">
-      {% if r.photo_path %}
-      <img src="{{ r.photo_path }}" alt="" class="aspect-[16/9] w-full object-cover">
+      {% if (r.photo_path or '')|media_url %}
+      <img src="{{ (r.photo_path or '')|media_url }}" alt="" class="aspect-[16/9] w-full object-cover" loading="lazy">
       {% endif %}
       <div class="p-4">
         <p class="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">{{ r.posted_at.strftime('%b %d, %Y · %I:%M %p') }}</p>
