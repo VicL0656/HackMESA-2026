@@ -106,7 +106,6 @@ def create_app():
     from routes.auth import bp as auth_bp
     from routes.gym import bp as gym_bp
     from routes.inbox import bp as inbox_bp
-    from routes.integrations import bp as integrations_bp
     from routes.leaderboard import bp as leaderboard_bp
     from routes.outdoor import bp as outdoor_bp
     from routes.social import bp as social_bp
@@ -122,7 +121,6 @@ def create_app():
     app.register_blueprint(gym_bp)
     app.register_blueprint(outdoor_bp)
     app.register_blueprint(weights_bp)
-    app.register_blueprint(integrations_bp)
 
     @app.get("/uploads/<path:name>")
     def uploaded_file(name: str):
@@ -285,7 +283,6 @@ def _sqlite_add_missing_columns() -> None:
     add_col("users", "workout_days", "VARCHAR(64)")
     add_col("users", "goal_weight_lbs", "FLOAT")
     add_col("workouts", "is_rest_day", "INTEGER DEFAULT 0")
-    add_col("users", "health_bridge_token_hash", "VARCHAR(128)")
 
 
 app = create_app()

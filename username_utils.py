@@ -46,7 +46,9 @@ def assign_username_if_missing(user) -> str:
 
 
 def resolve_user_by_email_or_username(raw: str):
-    """Find a user by email or @username (lazy-imports User to avoid cycles)."""
+    """Find a user by email, school_email, or @username (lazy-imports User to avoid cycles)."""
+    from sqlalchemy import func
+
     from models import User
 
     s = (raw or "").strip()
@@ -55,9 +57,16 @@ def resolve_user_by_email_or_username(raw: str):
     if s.startswith("@"):
         un = normalize_username(s)
         return User.query.filter_by(username=un).first() if un else None
+    # Any address with @ is treated as email first (not only domains containing a dot).
+    # Previously `user@localhost` or `student@campus` failed and fell through to a bogus username lookup.
     if "@" in s:
-        left, right = s.split("@", 1)
-        if left and "." in right:
-            return User.query.filter_by(email=s.lower()).first()
+        el = s.lower()
+        u = User.query.filter(func.lower(User.email) == el).first()
+        if u:
+            return u
+        u = User.query.filter(User.school_email.isnot(None), func.lower(User.school_email) == el).first()
+        if u:
+            return u
+        return None
     un = normalize_username(s)
     return User.query.filter_by(username=un).first() if un else None

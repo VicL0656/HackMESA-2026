@@ -5,14 +5,12 @@ from __future__ import annotations
 import json
 import math
 import re
-import secrets
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from extensions import bcrypt, db
 from geocode import geocode_city
-from health_bridge_auth import hash_health_bridge_token
 from gym_store import get_or_create_osm_gym
 from models import Gym
 from osm_gyms import discover_gyms_nearby
@@ -33,10 +31,8 @@ def _settings_context():
     return {"gyms": gyms, "workout_day_set": workout_day_set}
 
 
-def _settings_render(health_bridge_token_plain: str | None = None):
-    ctx = _settings_context()
-    ctx["health_bridge_token_plain"] = health_bridge_token_plain
-    return render_template("account_settings.html", **ctx)
+def _settings_render():
+    return render_template("account_settings.html", **_settings_context())
 
 
 def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -76,20 +72,6 @@ def settings():
             current_user.username = username
             db.session.commit()
             flash("Profile updated.", "success")
-            return redirect(url_for("account.settings"))
-
-        if part == "health_new":
-            token = secrets.token_urlsafe(32)
-            th = hash_health_bridge_token(current_app.config.get("SECRET_KEY") or "", token)
-            current_user.health_bridge_token_hash = th
-            db.session.commit()
-            flash("Copy the token below now. Generating a new one replaces the previous token.", "success")
-            return _settings_render(health_bridge_token_plain=token)
-
-        if part == "health_revoke":
-            current_user.health_bridge_token_hash = None
-            db.session.commit()
-            flash("Health bridge token removed.", "info")
             return redirect(url_for("account.settings"))
 
         if part == "password":

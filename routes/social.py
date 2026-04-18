@@ -461,8 +461,10 @@ def connect_friend(username: str):
 @bp.post("/profile/update")
 @login_required
 def profile_update():
+    from workout_split_util import serialize_from_request
+
     current_user.school = (request.form.get("school") or "").strip() or None
-    current_user.workout_split = (request.form.get("workout_split") or "").strip() or None
+    current_user.workout_split = serialize_from_request(request.form)
     db.session.commit()
     flash("School and split saved.", "success")
     return redirect(url_for("social.profile"))
@@ -631,6 +633,11 @@ def profile():
         .all()
     )
 
+    from workout_split_util import card_lines, form_context
+
+    _fc = form_context(current_user.workout_split)
+    _lines, _legacy = card_lines(current_user.workout_split)
+
     return render_template(
         "profile.html",
         streak=streak,
@@ -644,4 +651,7 @@ def profile():
         latest_weight=latest_w,
         suggested_friends=suggested,
         recent_workouts=recent_workouts,
+        split_days=_fc["days"],
+        split_display_lines=_lines,
+        split_display_legacy=_legacy,
     )

@@ -23,7 +23,17 @@ from models import (
 EXERCISES = ["Bench Press", "Squat", "Deadlift", "Overhead Press", "Pull Ups"]
 
 DEMO_SCHOOL = "Indiana University"
-DEMO_SPLIT = "Mon: Push · Tue: Pull · Wed: Legs · Thu: Cardio · Fri: Full body · Weekends: Active recovery"
+DEMO_SPLIT = (
+    '{"version":1,"days":['
+    '{"upper":true,"lower":false,"other":false,"other_text":""},'
+    '{"upper":false,"lower":true,"other":false,"other_text":""},'
+    '{"upper":false,"lower":false,"other":true,"other_text":"Legs"},'
+    '{"upper":true,"lower":false,"other":true,"other_text":"Cardio"},'
+    '{"upper":false,"lower":true,"other":false,"other_text":""},'
+    '{"upper":false,"lower":false,"other":true,"other_text":"Active recovery"},'
+    '{"upper":false,"lower":false,"other":false,"other_text":""}'
+    ']}'
+)
 
 # Real gyms are resolved at check-in from the user's GPS + OpenStreetMap (see routes/gym.py).
 GYMS: list[dict] = []

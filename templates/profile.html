@@ -65,9 +65,34 @@
         </p>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-400" for="workout_split">Current workout split</label>
-        <textarea id="workout_split" name="workout_split" rows="4" maxlength="4000" placeholder="Mon: Upper · Tue: Lower · Wed: Cardio…"
-          class="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500 focus:border-brand-500 focus:ring-2">{{ current_user.workout_split or '' }}</textarea>
+        <span class="block text-xs font-medium text-slate-400">Weekly split</span>
+        <p class="mt-1 text-[10px] text-slate-500">Mon–Sun: pick Upper, Lower, and/or Other for each day. Other reveals a short label (e.g. Cardio, Arms).</p>
+        {% set day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+        <div class="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          {% for d in range(7) %}
+          {% set sd = split_days[d] %}
+          <div class="border-b border-slate-800/80 pb-3 last:border-0 last:pb-0" data-split-day-row="{{ d }}">
+            <p class="text-xs font-semibold text-slate-300">{{ day_names[d] }}</p>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+              <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-200">
+                <input type="checkbox" name="split_upper_{{ d }}" value="1" class="rounded border-slate-600 text-brand-500" {% if sd.upper %}checked{% endif %}>
+                Upper
+              </label>
+              <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-200">
+                <input type="checkbox" name="split_lower_{{ d }}" value="1" class="rounded border-slate-600 text-brand-500" {% if sd.lower %}checked{% endif %}>
+                Lower
+              </label>
+              <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-200">
+                <input type="checkbox" name="split_other_{{ d }}" value="1" class="split-other-cb rounded border-slate-600 text-brand-500" data-split-day="{{ d }}" {% if sd.other %}checked{% endif %}>
+                Other
+              </label>
+            </div>
+            <input type="text" name="split_other_text_{{ d }}" maxlength="200" placeholder="Label when Other is checked (e.g. Cardio, Full body)"
+              value="{{ sd.other_text }}"
+              class="split-other-input mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white outline-none focus:border-brand-500 {% if not sd.other %}hidden{% endif %}">
+          </div>
+          {% endfor %}
+        </div>
       </div>
       <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">Save</button>
     </form>
@@ -225,7 +250,16 @@
     </div>
     <div class="sm:col-span-2">
       <p class="text-xs uppercase tracking-wide text-slate-500">Workout split</p>
-      <p class="mt-1 whitespace-pre-wrap text-sm text-slate-200">{{ current_user.workout_split or 'Add your weekly split in the form above.' }}</p>
+      {% if split_display_legacy %}
+      <p class="mt-1 whitespace-pre-wrap text-sm text-slate-200">{{ split_display_legacy }}</p>
+      <p class="mt-2 text-[10px] text-amber-500/90">Saved as older free text. Use the week grid above and save to switch to the new format.</p>
+      {% elif split_display_lines %}
+      <ul class="mt-1 list-inside list-disc space-y-1 text-sm text-slate-200">
+        {% for line in split_display_lines %}<li>{{ line }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p class="mt-1 text-sm text-slate-500">Add your weekly split in the form above.</p>
+      {% endif %}
     </div>
     <div>
       <p class="text-xs uppercase tracking-wide text-slate-500">Workout style</p>
@@ -343,4 +377,22 @@
     <a href="{{ url_for('leaderboard.home') }}" class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-semibold text-slate-200 hover:border-brand-500">Leaderboard</a>
   </div>
 </div>
+<script>
+(function () {
+  document.querySelectorAll(".split-other-cb").forEach(function (cb) {
+    function sync() {
+      var row = cb.closest("[data-split-day-row]");
+      var inp = row ? row.querySelector(".split-other-input") : null;
+      if (!inp) return;
+      if (cb.checked) {
+        inp.classList.remove("hidden");
+      } else {
+        inp.classList.add("hidden");
+        inp.value = "";
+      }
+    }
+    cb.addEventListener("change", sync);
+  });
+})();
+</script>
 {% endblock %}

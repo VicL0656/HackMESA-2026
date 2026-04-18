@@ -29,8 +29,6 @@ class User(UserMixin, db.Model):
     home_gym_id = db.Column(db.Integer, db.ForeignKey("gyms.id"), nullable=True, index=True)
     workout_days = db.Column(db.String(64), nullable=True)  # JSON list of weekday ints 0=Mon..6=Sun
     goal_weight_lbs = db.Column(db.Float, nullable=True)
-    # SHA-256 hex of server secret + token (see health_bridge_auth); for Shortcuts / Health automations only.
-    health_bridge_token_hash = db.Column(db.String(128), nullable=True, unique=True, index=True)
 
     home_gym = db.relationship("Gym", foreign_keys=[home_gym_id])
 
