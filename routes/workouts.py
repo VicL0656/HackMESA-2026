@@ -271,6 +271,10 @@ def _serialize_line_items(lines_out: list[dict[str, object]]) -> list[dict]:
 @login_required
 def log_workout():
     if request.method == "POST":
+        save_target = (request.form.get("save_target") or "journal").strip().lower()
+        if save_target not in ("journal", "journal_feed"):
+            save_target = "journal"
+
         if request.form.get("rest_day") == "1":
             w = Workout(
                 user_id=current_user.id,
@@ -287,6 +291,9 @@ def log_workout():
             _update_streak_for_log(current_user.id)
             db.session.commit()
             emit_leaderboard_refresh(current_user.id)
+            if save_target == "journal_feed":
+                flash("Rest day saved to your training journal and shared on the feed.", "success")
+                return redirect(url_for("social.feed"))
             flash("Rest day saved to your training journal.", "success")
             return redirect(url_for("social.profile") + "#gym-journal")
 
@@ -372,7 +379,13 @@ def log_workout():
 
             notify_friends_of_pr(current_user, workout, pr_exercise_name, pr_weight, pr_reps)
             db.session.commit()
+            if save_target == "journal_feed":
+                flash("PR logged — saved to your journal and shared on the feed.", "success")
+                return redirect(url_for("social.feed", new_pr=pr_exercise_name))
             return redirect(url_for("social.profile", new_pr=pr_exercise_name) + "#gym-journal")
+        if save_target == "journal_feed":
+            flash("Saved to your training journal and shared on the feed.", "success")
+            return redirect(url_for("social.feed"))
         flash("Saved to your training journal.", "success")
         return redirect(url_for("social.profile") + "#gym-journal")
 

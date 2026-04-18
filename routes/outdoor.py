@@ -75,6 +75,12 @@ def log_outdoor():
         db.session.add(row)
         db.session.commit()
         emit_leaderboard_refresh(current_user.id)
+        save_target = (request.form.get("save_target") or "journal").strip().lower()
+        if save_target not in ("journal", "journal_feed"):
+            save_target = "journal"
+        if save_target == "journal_feed":
+            flash("Outdoor session saved to your training journal and shared on the feed.", "success")
+            return redirect(url_for("social.feed"))
         flash("Outdoor session saved to your training journal.", "success")
         return redirect(url_for("social.profile") + "#gym-journal")
 
