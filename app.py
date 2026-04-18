@@ -45,9 +45,9 @@ def create_app():
     app.config["GYM_CHECKIN_MAX_METERS"] = max_m
     app.config["GYM_CHECKIN_MAX_MILES"] = max_m / _METERS_PER_MILE
     app.config["UPLOAD_FOLDER"] = instance_path / "uploads"
-    # Largest single-file upload (profile photo); multipart body must fit under this.
+    # Largest single-file uploads; multipart body must fit under max of these.
     app.config["MAX_PROFILE_PHOTO_BYTES"] = 25 * 1024 * 1024
-    app.config["MAX_UPLOAD_IMAGE_BYTES"] = 3 * 1024 * 1024
+    app.config["MAX_UPLOAD_IMAGE_BYTES"] = 25 * 1024 * 1024
     app.config["MAX_CONTENT_LENGTH"] = int(
         max(
             app.config["MAX_PROFILE_PHOTO_BYTES"],

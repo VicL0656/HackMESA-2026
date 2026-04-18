@@ -110,7 +110,7 @@ def log_workout():
         photo = save_uploaded_image(fphoto, f"w_{current_user.id}")
         if file_was_chosen(fphoto) and not photo:
             flash(
-                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit (HEIC/iPhone often needs “Most Compatible” in Camera settings).",
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the 25 MB limit (HEIC/iPhone often needs “Most Compatible” in Camera settings).",
                 "warning",
             )
 
@@ -172,7 +172,7 @@ def edit_workout(workout_id: int):
         photo = save_uploaded_image(fphoto, f"w_{current_user.id}")
         if file_was_chosen(fphoto) and not photo:
             flash(
-                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit.",
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the 25 MB limit.",
                 "warning",
             )
         if photo:

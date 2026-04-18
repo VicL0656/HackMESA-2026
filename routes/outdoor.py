@@ -57,7 +57,7 @@ def log_outdoor():
         photo = save_uploaded_image(fphoto, f"out_{current_user.id}")
         if file_was_chosen(fphoto) and not photo:
             flash(
-                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the upload size limit (HEIC/iPhone often needs “Most Compatible”).",
+                "Photo was not saved. Use JPG, PNG, WEBP, or GIF under the 25 MB limit (HEIC/iPhone often needs “Most Compatible”).",
                 "warning",
             )
         row = OutdoorActivity(

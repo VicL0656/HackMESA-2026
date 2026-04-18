@@ -25,7 +25,7 @@ def save_uploaded_image(
         return None
     limit = max_bytes
     if limit is None:
-        limit = int(current_app.config.get("MAX_UPLOAD_IMAGE_BYTES", 3 * 1024 * 1024))
+        limit = int(current_app.config.get("MAX_UPLOAD_IMAGE_BYTES", 25 * 1024 * 1024))
     name = secure_filename(file.filename)
     ext = Path(name).suffix.lower()
     if ext not in ALLOWED_IMAGE_EXT:
