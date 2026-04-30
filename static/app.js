@@ -1,5 +1,11 @@
 /* global io */
 
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s == null ? "" : String(s);
+  return d.innerHTML;
+}
+
 function initLeaderboardTabs() {
   const tabFriends = document.getElementById("tab-friends");
   const tabChallenge = document.getElementById("tab-challenge");
@@ -240,12 +246,6 @@ function initSchoolAutocomplete() {
   let fetchTimer = null;
   let lastController = null;
 
-  const escapeHtml = (s) => {
-    const d = document.createElement("div");
-    d.textContent = s == null ? "" : String(s);
-    return d.innerHTML;
-  };
-
   const hide = () => {
     list.classList.add("hidden");
     list.innerHTML = "";
@@ -375,7 +375,7 @@ async function copyToClipboard(text) {
   }
 }
 
-async function shareOrCopyPr(text) {
+async function sharePlainText(text) {
   if (navigator.share) {
     try {
       await navigator.share({ text });
@@ -387,6 +387,33 @@ async function shareOrCopyPr(text) {
   await copyToClipboard(text);
 }
 
+async function shareTitleTextAndUrl(title, text, url, btn) {
+  const shareUrl = url || window.location.href;
+  const combined = `${text}\n${shareUrl}`;
+  const defaultLabel = (btn && btn.textContent && btn.textContent.trim()) || "Share";
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: title || "GymLink",
+        text: text || "",
+        url: shareUrl,
+      });
+      return;
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+    }
+  }
+  const copied = await copyToClipboard(combined);
+  if (copied && btn) {
+    btn.textContent = "Copied!";
+    setTimeout(() => {
+      btn.textContent = defaultLabel;
+    }, 2000);
+  } else if (!copied) {
+    prompt("Copy:", combined);
+  }
+}
+
 function initGymlinkSharePr() {
   document.body.addEventListener("click", (e) => {
     const btn = e.target.closest(".gymlink-share-pr");
@@ -394,7 +421,18 @@ function initGymlinkSharePr() {
     const weight = btn.getAttribute("data-weight");
     const exercise = btn.getAttribute("data-exercise");
     const text = buildPrShareText(weight, exercise);
-    shareOrCopyPr(text);
+    void sharePlainText(text);
+  });
+}
+
+function initGymlinkFeedShare() {
+  document.body.addEventListener("click", (e) => {
+    const btn = e.target.closest(".gymlink-feed-share");
+    if (!btn) return;
+    const title = btn.getAttribute("data-title") || "GymLink";
+    const text = btn.getAttribute("data-text") || "";
+    const url = btn.getAttribute("data-url") || "";
+    void shareTitleTextAndUrl(title, text, url, btn);
   });
 }
 
@@ -498,12 +536,6 @@ function initFriendUsernameAutocomplete() {
   let fetchTimer = null;
   let lastController = null;
 
-  const escapeHtml = (s) => {
-    const d = document.createElement("div");
-    d.textContent = s == null ? "" : String(s);
-    return d.innerHTML;
-  };
-
   const hide = () => {
     list.classList.add("hidden");
     list.innerHTML = "";
@@ -596,6 +628,233 @@ function initFriendUsernameAutocomplete() {
   });
 }
 
+function fmtPacific(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
+function flashChatBubble(bubble) {
+  if (!bubble) return;
+  bubble.classList.add("gymlink-msg-highlight");
+  setTimeout(() => bubble.classList.remove("gymlink-msg-highlight"), 1200);
+}
+
+function chatMaxMsgId(box) {
+  let max = 0;
+  box.querySelectorAll("[data-msg-id]").forEach((n) => {
+    const v = parseInt(n.getAttribute("data-msg-id"), 10);
+    if (!Number.isNaN(v)) max = Math.max(max, v);
+  });
+  return max;
+}
+
+function initDmChatPage() {
+  const root = document.getElementById("dm-chat-root");
+  const box = document.getElementById("dm-messages");
+  const form = document.getElementById("dm-send-form");
+  if (!root || !box || !form) return;
+
+  box.querySelectorAll(".dm-msg-time[data-utc]").forEach((el) => {
+    el.textContent = fmtPacific(el.getAttribute("data-utc"));
+  });
+
+  const mid = parseInt(root.getAttribute("data-match-id"), 10);
+  const meId = parseInt(root.getAttribute("data-me-id"), 10);
+  const pollUrl = root.getAttribute("data-poll-url") || "";
+
+  function appendDmMsg(payload) {
+    const wrap = document.createElement("div");
+    wrap.className = `dm-msg flex ${payload.sender_id === meId ? "justify-end" : "justify-start"}`;
+    wrap.setAttribute("data-msg-id", String(payload.id));
+    const inner = document.createElement("div");
+    inner.className =
+      "dm-msg-bubble max-w-[80%] rounded-2xl px-3 py-2 text-sm " +
+      (payload.sender_id === meId ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-100");
+    inner.innerHTML =
+      '<p class="dm-msg-body"></p><p class="dm-msg-time mt-1 text-[10px] opacity-70" data-utc=""></p>';
+    inner.querySelector(".dm-msg-body").textContent = payload.content || "";
+    const te = inner.querySelector(".dm-msg-time");
+    te.setAttribute("data-utc", payload.sent_at || "");
+    te.textContent = fmtPacific(payload.sent_at || "");
+    wrap.appendChild(inner);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    if (payload.sender_id !== meId) flashChatBubble(inner);
+  }
+
+  try {
+    if (typeof io !== "undefined") {
+      const socket = io({ transports: ["websocket", "polling"] });
+      socket.on("dm_message", (payload) => {
+        if (!payload || payload.match_id !== mid) return;
+        if (box.querySelector(`[data-msg-id="${payload.id}"]`)) return;
+        appendDmMsg(payload);
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (pollUrl) {
+    setInterval(async () => {
+      try {
+        const after = chatMaxMsgId(box);
+        const res = await fetch(`${pollUrl}?after=${encodeURIComponent(String(after))}`, {
+          credentials: "same-origin",
+        });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok || !Array.isArray(data.messages)) return;
+        data.messages.forEach((m) => {
+          if (!box.querySelector(`[data-msg-id="${m.id}"]`)) appendDmMsg(m);
+        });
+      } catch {
+        /* ignore */
+      }
+    }, 10000);
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const inp = form.querySelector('input[name="content"]');
+    const txt = ((inp && inp.value) || "").trim();
+    if (!txt) return;
+    try {
+      const res = await fetch(window.location.pathname, {
+        method: "POST",
+        body: fd,
+        credentials: "same-origin",
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.ok) inp.value = "";
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+function initGroupChatPage() {
+  const root = document.getElementById("gc-chat-root");
+  const box = document.getElementById("gc-messages");
+  const form = document.getElementById("gc-send-form");
+  const gear = document.getElementById("gc-gear-btn");
+  const menu = document.getElementById("gc-settings-menu");
+  if (gear && menu) {
+    gear.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const open = !menu.classList.contains("hidden");
+      if (open) {
+        menu.classList.add("hidden");
+        gear.setAttribute("aria-expanded", "false");
+      } else {
+        menu.classList.remove("hidden");
+        gear.setAttribute("aria-expanded", "true");
+      }
+    });
+    document.addEventListener("click", () => {
+      menu.classList.add("hidden");
+      gear.setAttribute("aria-expanded", "false");
+    });
+    menu.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+  }
+  if (!root || !box || !form) return;
+
+  box.querySelectorAll(".gc-msg-time[data-utc]").forEach((el) => {
+    el.textContent = fmtPacific(el.getAttribute("data-utc"));
+  });
+
+  const gid = parseInt(root.getAttribute("data-group-id"), 10);
+  const meId = parseInt(root.getAttribute("data-me-id"), 10);
+  const pollUrl = root.getAttribute("data-poll-url") || "";
+
+  function appendGcMsg(payload) {
+    const wrap = document.createElement("div");
+    wrap.className = `gc-msg flex ${payload.sender_id === meId ? "justify-end" : "justify-start"}`;
+    wrap.setAttribute("data-msg-id", String(payload.id));
+    const inner = document.createElement("div");
+    inner.className =
+      "gc-msg-bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm " +
+      (payload.sender_id === meId ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-100");
+    const who =
+      payload.sender_id !== meId && payload.sender_username
+        ? `<p class="mb-1 text-[10px] font-semibold text-brand-400/90">@${escapeHtml(String(payload.sender_username))}</p>`
+        : payload.sender_id !== meId
+          ? '<p class="mb-1 text-[10px] font-semibold text-brand-400/90">Member</p>'
+          : "";
+    inner.innerHTML =
+      who + '<p class="gc-msg-body"></p><p class="gc-msg-time mt-1 text-[10px] opacity-70" data-utc=""></p>';
+    inner.querySelector(".gc-msg-body").textContent = payload.content || "";
+    const te = inner.querySelector(".gc-msg-time");
+    te.setAttribute("data-utc", payload.sent_at || "");
+    te.textContent = fmtPacific(payload.sent_at || "");
+    wrap.appendChild(inner);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    if (payload.sender_id !== meId) flashChatBubble(inner);
+  }
+
+  try {
+    if (typeof io !== "undefined") {
+      const socket = io({ transports: ["websocket", "polling"] });
+      socket.on("group_message", (payload) => {
+        if (!payload || payload.group_id !== gid) return;
+        if (box.querySelector(`[data-msg-id="${payload.id}"]`)) return;
+        appendGcMsg(payload);
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (pollUrl) {
+    setInterval(async () => {
+      try {
+        const after = chatMaxMsgId(box);
+        const res = await fetch(`${pollUrl}?after=${encodeURIComponent(String(after))}`, {
+          credentials: "same-origin",
+        });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok || !Array.isArray(data.messages)) return;
+        data.messages.forEach((m) => {
+          if (!box.querySelector(`[data-msg-id="${m.id}"]`)) appendGcMsg(m);
+        });
+      } catch {
+        /* ignore */
+      }
+    }, 10000);
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const inp = form.querySelector('input[name="content"]');
+    const txt = ((inp && inp.value) || "").trim();
+    if (!txt) return;
+    try {
+      const res = await fetch(window.location.pathname, {
+        method: "POST",
+        body: fd,
+        credentials: "same-origin",
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.ok) inp.value = "";
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initLeaderboardTabs();
   initLeaderboardSocket();
@@ -604,6 +863,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initSchoolAutocomplete();
   initFriendUsernameAutocomplete();
   initGymlinkSharePr();
+  initGymlinkFeedShare();
+  initDmChatPage();
+  initGroupChatPage();
   initWorkoutDayReminders();
   initNotificationEnable();
 });

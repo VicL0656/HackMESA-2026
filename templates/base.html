@@ -17,6 +17,13 @@
       }
     }
   </script>
+  <style>
+    .gymlink-msg-highlight {
+      transition: background-color 0.9s ease-out, box-shadow 0.9s ease-out;
+      background-color: rgba(250, 204, 21, 0.28) !important;
+      box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35);
+    }
+  </style>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
   <script>
     window.GYMLINK_SCRIPT_ROOT = {{ (request.script_root or "")|tojson }};

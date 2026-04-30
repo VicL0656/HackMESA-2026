@@ -211,28 +211,4 @@
     {% endif %}
   </section>
 </div>
-<script>
-(function () {
-  document.querySelectorAll(".gymlink-feed-share").forEach(function (btn) {
-    btn.addEventListener("click", async function () {
-      var title = btn.getAttribute("data-title") || "GymLink";
-      var text = btn.getAttribute("data-text") || "";
-      var url = btn.getAttribute("data-url") || window.location.href;
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: title, text: text, url: url });
-        } catch (e) {}
-      } else {
-        try {
-          await navigator.clipboard.writeText(text + "\n" + url);
-          btn.textContent = "Copied!";
-          setTimeout(function () { btn.textContent = "Share"; }, 2000);
-        } catch (e) {
-          prompt("Copy:", text + "\n" + url);
-        }
-      }
-    });
-  });
-})();
-</script>
 {% endblock %}
